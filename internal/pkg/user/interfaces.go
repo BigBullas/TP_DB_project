@@ -8,8 +8,10 @@ import (
 type Repository interface {
 	CreateUser(ctx context.Context, user models.User) error
 	CheckUserForUniq(ctx context.Context, user models.User) ([]models.User, error)
+	GetUser(ctx context.Context, nickname string) (models.User, error)
 }
 
 type UseCase interface {
 	CreateUser(ctx context.Context, user models.User) ([]models.User, error)
+	GetUser(ctx context.Context, nickname string) (models.User, error)
 }

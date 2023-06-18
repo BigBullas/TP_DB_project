@@ -46,13 +46,14 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	nickname, found := vars["nickname"]
 	if !found {
-		utils.Response(w, http.StatusNotFound, nickname)
+		utils.Response(w, http.StatusNotFound, nil)
 		return
 	}
 
-	//foundUser := h.uc.GetUser(r.Context(), nickname)
-	//if err == nil {
-	//
-	//}
-
+	foundUser, err := h.uc.GetUser(r.Context(), nickname)
+	if err == nil {
+		utils.Response(w, http.StatusOK, foundUser)
+		return
+	}
+	utils.Response(w, http.StatusNotFound, nickname)
 }

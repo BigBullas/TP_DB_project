@@ -25,3 +25,7 @@ func (u *UseCase) CreateUser(ctx context.Context, user models.User) ([]models.Us
 	}
 	return []models.User{user}, nil
 }
+
+func (u *UseCase) GetUser(ctx context.Context, nickname string) (models.User, error) {
+	return u.repo.GetUser(ctx, nickname)
+}

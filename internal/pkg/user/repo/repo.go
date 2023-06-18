@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/user"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -45,4 +46,18 @@ func (r *repoPostgres) CheckUserForUniq(ctx context.Context, user models.User) (
 		return nil, rows.Err()
 	}
 	return users, nil
+}
+
+func (r *repoPostgres) GetUser(ctx context.Context, nickname string) (models.User, error) {
+	const GetUser = `SELECT * FROM users WHERE Nickname = $1;`
+
+	var fUser models.User
+	err := r.Conn.QueryRow(ctx, GetUser, nickname).Scan(&fUser.NickName, &fUser.FullName, &fUser.About, &fUser.Email)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.User{}, nil
+		}
+		return models.User{}, err
+	}
+	return fUser, nil
 }
