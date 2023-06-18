@@ -26,11 +26,23 @@ func (r *repoPostgres) CreateUser(ctx context.Context, user models.User) error {
 
 func (r *repoPostgres) CheckUserForUniq(ctx context.Context, user models.User) ([]models.User, error) {
 	const CheckUserForUniq = `SELECT * FROM users WHERE Nickname = $1 OR Email = $2;`
-	return nil, nil
-	//users, err := r.Conn.Exec(ctx, CheckUserForUniq, user.NickName, user.Email)
-	//if err != nil {
-	//	return nil, err
-	//}
-	////return []models.User{users}, nil
-	//return nil, nil
+	rows, err := r.Conn.Query(ctx, CheckUserForUniq, user.NickName, user.Email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		err := rows.Scan(&u.NickName, &u.FullName, &u.About, &u.Email)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return users, nil
 }
