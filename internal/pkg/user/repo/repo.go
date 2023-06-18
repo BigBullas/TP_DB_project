@@ -1,9 +1,9 @@
 package repo
 
 import (
-	"awesomeProject1/internal/models"
-	"awesomeProject1/internal/pkg/user"
 	"context"
+	"github.com/BigBullas/TP_DB_project/internal/models"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/user"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -26,9 +26,11 @@ func (r *repoPostgres) CreateUser(ctx context.Context, user models.User) error {
 
 func (r *repoPostgres) CheckUserForUniq(ctx context.Context, user models.User) ([]models.User, error) {
 	const CheckUserForUniq = `SELECT * FROM users WHERE Nickname = $1 OR Email = $2;`
-	users, err := r.Conn.Exec(ctx, CheckUserForUniq, user.NickName, user.Email)
-	if err != nil {
-		return nil, err
-	}
-	return []models.User{users}, nil
+	return nil, nil
+	//users, err := r.Conn.Exec(ctx, CheckUserForUniq, user.NickName, user.Email)
+	//if err != nil {
+	//	return nil, err
+	//}
+	////return []models.User{users}, nil
+	//return nil, nil
 }

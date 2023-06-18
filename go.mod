@@ -1,6 +1,6 @@
-module awesomeProject1
+module github.com/BigBullas/TP_DB_project
 
-go 1.20
+go 1.19
 
 require (
 	github.com/gorilla/mux v1.8.0

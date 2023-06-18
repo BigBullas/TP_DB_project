@@ -1,8 +1,8 @@
 package user
 
 import (
-	"awesomeProject1/internal/models"
 	"context"
+	"github.com/BigBullas/TP_DB_project/internal/models"
 )
 
 type Repository interface {

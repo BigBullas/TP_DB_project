@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"awesomeProject1/internal/models"
 	"encoding/json"
 	"fmt"
+	"github.com/BigBullas/TP_DB_project/internal/models"
 	"net/http"
 )
 

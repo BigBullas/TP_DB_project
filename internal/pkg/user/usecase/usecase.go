@@ -1,9 +1,9 @@
 package usecase
 
 import (
-	"awesomeProject1/internal/models"
-	"awesomeProject1/internal/pkg/user"
 	"context"
+	"github.com/BigBullas/TP_DB_project/internal/models"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/user"
 )
 
 type UseCase struct {

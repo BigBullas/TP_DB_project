@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"awesomeProject1/internal/pkg/user/delivery"
-	"awesomeProject1/internal/pkg/user/repo"
-	"awesomeProject1/internal/pkg/user/usecase"
 	"context"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/user/delivery"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/user/repo"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/user/usecase"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"log"

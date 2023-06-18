@@ -1,9 +1,9 @@
 package delivery
 
 import (
-	"awesomeProject1/internal/models"
-	User "awesomeProject1/internal/pkg/user"
-	"awesomeProject1/internal/utils"
+	"github.com/BigBullas/TP_DB_project/internal/models"
+	User "github.com/BigBullas/TP_DB_project/internal/pkg/user"
+	"github.com/BigBullas/TP_DB_project/internal/utils"
 	"github.com/gorilla/mux"
 	"github.com/mailru/easyjson"
 	"net/http"
@@ -46,13 +46,13 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	nickname, found := vars["nickname"]
 	if !found {
-		utils.Response(w, http.StatusNotFound, nil)
+		utils.Response(w, http.StatusNotFound, nickname)
 		return
 	}
 
-	foundUser := h.uc.GetUser(r.Context(), nickname)
-	if err == nil {
-
-	}
+	//foundUser := h.uc.GetUser(r.Context(), nickname)
+	//if err == nil {
+	//
+	//}
 
 }
