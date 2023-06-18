@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/BigBullas/TP_DB_project/internal/pkg/user/delivery"
-	"github.com/BigBullas/TP_DB_project/internal/pkg/user/repo"
-	"github.com/BigBullas/TP_DB_project/internal/pkg/user/usecase"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/forume/delivery"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/forume/repo"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/forume/usecase"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"log"
@@ -28,11 +28,11 @@ func main() {
 	fUseCase := usecase.NewRepoUseCase(fRepo)
 	fHandler := delivery.NewForumHandler(fUseCase) // почему NewRepoPostgres, NewRepoUseCase, а NewForumHandler
 
-	forum := muxRoute.PathPrefix("/api").Subrouter() // в будущем поменять либо user на forum либо наоборот
+	forum := muxRoute.PathPrefix("/api").Subrouter() // в будущем поменять либо forume на forum либо наоборот
 	{
 		forum.HandleFunc("/user/{nickname}/create", fHandler.CreateUser).Methods(http.MethodPost)
 		forum.HandleFunc("/user/{nickname}/profile", fHandler.GetUser).Methods(http.MethodGet)
-		//forum.HandleFunc("/user/{nickname}/profile", fHandler.ChangeUserInfo).Methods(http.MethodPost)
+		forum.HandleFunc("/user/{nickname}/profile", fHandler.ChangeUserInfo).Methods(http.MethodPost)
 
 		//forum.HandleFunc("/forum/create", fHandler.CreateForum).Methods(http.MethodPost)
 		//forum.HandleFunc("/forum/{slug}/details", fHandler.ForumInfo).Methods(http.MethodGet)

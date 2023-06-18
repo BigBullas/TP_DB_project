@@ -1,4 +1,4 @@
-package user
+package forume
 
 import (
 	"context"
@@ -9,9 +9,11 @@ type Repository interface {
 	CreateUser(ctx context.Context, user models.User) error
 	CheckUserForUniq(ctx context.Context, user models.User) ([]models.User, error)
 	GetUser(ctx context.Context, nickname string) (models.User, error)
+	ChangeUserInfo(ctx context.Context, user models.User) (models.User, int)
 }
 
 type UseCase interface {
 	CreateUser(ctx context.Context, user models.User) ([]models.User, error)
 	GetUser(ctx context.Context, nickname string) (models.User, error)
+	ChangeUserInfo(ctx context.Context, user models.User) (models.User, int)
 }

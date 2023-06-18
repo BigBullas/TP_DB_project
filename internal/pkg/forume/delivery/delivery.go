@@ -2,7 +2,7 @@ package delivery
 
 import (
 	"github.com/BigBullas/TP_DB_project/internal/models"
-	User "github.com/BigBullas/TP_DB_project/internal/pkg/user"
+	User "github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/BigBullas/TP_DB_project/internal/utils"
 	"github.com/gorilla/mux"
 	"github.com/mailru/easyjson"
@@ -19,8 +19,8 @@ func NewForumHandler(useCase User.UseCase) *Handler {
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	nickname, found := vars["nickname"]
-	if !found {
+	nickname, flag := vars["nickname"]
+	if !flag {
 		utils.Response(w, http.StatusNotFound, nil)
 		return
 	}
@@ -44,8 +44,8 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	nickname, found := vars["nickname"]
-	if !found {
+	nickname, flag := vars["nickname"]
+	if !flag {
 		utils.Response(w, http.StatusNotFound, nil)
 		return
 	}
@@ -56,4 +56,25 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.Response(w, http.StatusNotFound, nickname)
+}
+
+func (h *Handler) ChangeUserInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	nickname, flag := vars["nickname"]
+	if !flag {
+		utils.Response(w, http.StatusNotFound, nil)
+		return
+	}
+
+	user := models.User{}
+	err := easyjson.UnmarshalFromReader(r.Body, &user)
+	if err != nil {
+		utils.Response(w, http.StatusInternalServerError, nil) // почему здесь StatusInternalServerError
+		return
+	}
+	user.NickName = nickname
+
+	changedUser, status := h.uc.ChangeUserInfo(r.Context(), user)
+	utils.Response(w, status, changedUser)
+
 }

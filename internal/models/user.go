@@ -1,6 +1,6 @@
 package models
 
-// easyjson -all ./internal/models/user.go
+// easyjson -all ./internal/models/forume.go
 
 type User struct {
 	ID       int    `json:"-"`

@@ -3,16 +3,17 @@ package repo
 import (
 	"context"
 	"github.com/BigBullas/TP_DB_project/internal/models"
-	"github.com/BigBullas/TP_DB_project/internal/pkg/user"
+	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"net/http"
 )
 
 type repoPostgres struct {
 	Conn *pgxpool.Pool
 }
 
-func NewRepoPostgres(Conn *pgxpool.Pool) user.Repository {
+func NewRepoPostgres(Conn *pgxpool.Pool) forume.Repository {
 	return &repoPostgres{Conn: Conn}
 }
 
@@ -60,4 +61,14 @@ func (r *repoPostgres) GetUser(ctx context.Context, nickname string) (models.Use
 		return models.User{}, err
 	}
 	return fUser, nil
+}
+
+func (r *repoPostgres) ChangeUserInfo(ctx context.Context, user models.User) (models.User, int) {
+	const ChangeUserInfo = `UPDATE users SET FullName = $1, About = $2, Email = $3 WHERE Nickname = $4;`
+	_, err := r.Conn.Exec(ctx, ChangeUserInfo, user.FullName, user.About, user.Email, user.NickName)
+	if err != nil {
+		return user, http.StatusOK
+	}
+	return models.User{}, http.StatusInternalServerError
+
 }
