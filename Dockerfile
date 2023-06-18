@@ -1,4 +1,4 @@
-FROM golang:1.20 AS lang
+FROM golang:1.19 AS lang
 
 ADD . /opt/app
 WORKDIR /opt/app
