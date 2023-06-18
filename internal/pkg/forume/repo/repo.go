@@ -66,7 +66,7 @@ func (r *repoPostgres) GetUser(ctx context.Context, nickname string) (models.Use
 func (r *repoPostgres) ChangeUserInfo(ctx context.Context, user models.User) (models.User, int) {
 	const ChangeUserInfo = `UPDATE users SET FullName = $1, About = $2, Email = $3 WHERE Nickname = $4;`
 	_, err := r.Conn.Exec(ctx, ChangeUserInfo, user.FullName, user.About, user.Email, user.NickName)
-	if err != nil {
+	if err == nil {
 		return user, http.StatusOK
 	}
 	return models.User{}, http.StatusInternalServerError
