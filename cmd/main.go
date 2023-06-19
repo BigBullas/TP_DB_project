@@ -28,13 +28,13 @@ func main() {
 	fUseCase := usecase.NewRepoUseCase(fRepo)
 	fHandler := delivery.NewForumHandler(fUseCase) // почему NewRepoPostgres, NewRepoUseCase, а NewForumHandler
 
-	forum := muxRoute.PathPrefix("/api").Subrouter() // в будущем поменять либо forume на forum либо наоборот
+	forum := muxRoute.PathPrefix("/api").Subrouter() // в будущем поменять либо user на forum либо наоборот
 	{
 		forum.HandleFunc("/user/{nickname}/create", fHandler.CreateUser).Methods(http.MethodPost)
 		forum.HandleFunc("/user/{nickname}/profile", fHandler.GetUser).Methods(http.MethodGet)
 		forum.HandleFunc("/user/{nickname}/profile", fHandler.ChangeUserInfo).Methods(http.MethodPost)
 
-		//forum.HandleFunc("/forum/create", fHandler.CreateForum).Methods(http.MethodPost)
+		forum.HandleFunc("/forum/create", fHandler.CreateForum).Methods(http.MethodPost)
 		//forum.HandleFunc("/forum/{slug}/details", fHandler.ForumInfo).Methods(http.MethodGet)
 		//forum.HandleFunc("/forum/{slug}/create", fHandler.CreateForumThread).Methods(http.MethodPost)
 		//forum.HandleFunc("/forum/{slug}/users", fHandler.GetUsersForum).Methods(http.MethodGet)

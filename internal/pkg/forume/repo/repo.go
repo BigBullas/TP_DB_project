@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/jackc/pgx/v4"
@@ -67,8 +68,43 @@ func (r *repoPostgres) ChangeUserInfo(ctx context.Context, user models.User) (mo
 	const ChangeUserInfo = `UPDATE users SET FullName = $1, About = $2, Email = $3 WHERE Nickname = $4;`
 	_, err := r.Conn.Exec(ctx, ChangeUserInfo, user.FullName, user.About, user.Email, user.NickName)
 	if err == nil {
+		fmt.Println("repo user: ", user)
 		return user, http.StatusOK
 	}
 	return models.User{}, http.StatusInternalServerError
+}
 
+func (r *repoPostgres) CheckForumForUniq(ctx context.Context, forum models.Forum) ([]models.Forum, int) {
+	const CheckForumForUniq = `SELECT * FROM forum WHERE Slug = $1;`
+	rows, err := r.Conn.Query(ctx, CheckForumForUniq, forum.Slug)
+	if err != nil {
+		fmt.Println("error in 78 ", err)
+		return nil, http.StatusInternalServerError
+	}
+	defer rows.Close()
+
+	var forums []models.Forum
+	for rows.Next() {
+		var f models.Forum
+		err := rows.Scan(&f.Title, &f.User, &f.Slug, &f.Posts, &f.Threads)
+		if err != nil {
+			fmt.Println("error in 88 ", err)
+			return nil, http.StatusInternalServerError
+		}
+		forums = append(forums, f)
+	}
+	if rows.Err() != nil {
+		fmt.Println("error in 95 ", rows.Err())
+		return nil, http.StatusInternalServerError
+	}
+	return forums, http.StatusOK
+}
+
+func (r *repoPostgres) CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int) {
+	const CreateForum = `INSERT INTO forum(Title, "user", Slug, Posts, Threads) VALUES ($1, $2, $3, $4, $5);`
+	_, err := r.Conn.Exec(ctx, CreateForum, forum.Title, forum.User, forum.Slug, forum.Posts, forum.Threads)
+	if err != nil {
+		return []models.Forum{}, http.StatusInternalServerError
+	}
+	return []models.Forum{forum}, http.StatusCreated
 }

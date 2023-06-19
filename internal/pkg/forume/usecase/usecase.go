@@ -39,9 +39,27 @@ func (u *UseCase) ChangeUserInfo(ctx context.Context, user models.User) (models.
 	if thisUser == (models.User{}) {
 		return models.User{}, http.StatusNotFound
 	}
+
 	usersWithSameInfo, _ := u.repo.CheckUserForUniq(ctx, user)
 	if len(usersWithSameInfo) > 1 {
 		return models.User{}, http.StatusConflict
 	}
 	return u.repo.ChangeUserInfo(ctx, user)
+}
+
+func (u *UseCase) CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int) {
+	forumsWithSameSlag, _ := u.repo.CheckForumForUniq(ctx, forum)
+	if len(forumsWithSameSlag) > 0 {
+		return forumsWithSameSlag, http.StatusConflict
+	}
+
+	author, err := u.repo.GetUser(ctx, forum.User)
+	if err != nil {
+		return []models.Forum{}, http.StatusInternalServerError
+	}
+	if author == (models.User{}) {
+		return []models.Forum{}, http.StatusNotFound
+	}
+
+	return u.repo.CreateForum(ctx, forum)
 }

@@ -10,10 +10,13 @@ type Repository interface {
 	CheckUserForUniq(ctx context.Context, user models.User) ([]models.User, error)
 	GetUser(ctx context.Context, nickname string) (models.User, error)
 	ChangeUserInfo(ctx context.Context, user models.User) (models.User, int)
+	CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int)
+	CheckForumForUniq(ctx context.Context, forum models.Forum) ([]models.Forum, int)
 }
 
 type UseCase interface {
 	CreateUser(ctx context.Context, user models.User) ([]models.User, error)
 	GetUser(ctx context.Context, nickname string) (models.User, error)
 	ChangeUserInfo(ctx context.Context, user models.User) (models.User, int)
+	CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int)
 }

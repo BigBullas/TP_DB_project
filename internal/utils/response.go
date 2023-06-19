@@ -13,7 +13,7 @@ func Response(w http.ResponseWriter, status int, body interface{}) {
 	}
 	w.WriteHeader(status)
 	if status == http.StatusNotFound && body != nil {
-		jsn, err := json.Marshal(models.ErrorResponse{Message: fmt.Sprintf("Can't find forume with id #%s\\n", body)})
+		jsn, err := json.Marshal(models.ErrorResponse{Message: fmt.Sprintf("Can't find the required #%s\\n", body)})
 		if err != nil {
 			return
 		}
