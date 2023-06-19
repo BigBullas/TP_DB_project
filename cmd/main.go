@@ -17,7 +17,6 @@ import (
 
 func main() {
 	muxRoute := mux.NewRouter()
-	//conn := "postgres://postgres:password@127.0.0.1:5432/bd?sslmode=disable&pool_max_conns=1000"
 	conn := "postgres://docker:docker@127.0.0.1:5432/docker?sslmode=disable&pool_max_conns=1000"
 	pool, err := pgxpool.Connect(context.Background(), conn)
 	if err != nil {
@@ -35,7 +34,7 @@ func main() {
 		forum.HandleFunc("/user/{nickname}/profile", fHandler.ChangeUserInfo).Methods(http.MethodPost)
 
 		forum.HandleFunc("/forum/create", fHandler.CreateForum).Methods(http.MethodPost)
-		//forum.HandleFunc("/forum/{slug}/details", fHandler.ForumInfo).Methods(http.MethodGet)
+		forum.HandleFunc("/forum/{slug}/details", fHandler.GetForumDetails).Methods(http.MethodGet)
 		//forum.HandleFunc("/forum/{slug}/create", fHandler.CreateForumThread).Methods(http.MethodPost)
 		//forum.HandleFunc("/forum/{slug}/users", fHandler.GetUsersForum).Methods(http.MethodGet)
 		//forum.HandleFunc("/forum/{slug}/threads", fHandler.GetThreadsForum).Methods(http.MethodGet)

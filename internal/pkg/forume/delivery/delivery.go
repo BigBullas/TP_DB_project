@@ -1,7 +1,6 @@
 package delivery
 
 import (
-	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	User "github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/BigBullas/TP_DB_project/internal/utils"
@@ -78,9 +77,7 @@ func (h *Handler) ChangeUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user.NickName = nickname
-	fmt.Println("delivery after unmarshal user:", user)
 	changedUser, status := h.uc.ChangeUserInfo(r.Context(), user)
-	fmt.Println("delivery after useCase user:", changedUser)
 	utils.Response(w, status, changedUser)
 }
 
@@ -98,4 +95,24 @@ func (h *Handler) CreateForum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.Response(w, status, forum.Title)
+}
+
+func (h *Handler) GetForumDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug, flag := vars["slug"]
+	if !flag {
+		utils.Response(w, http.StatusBadRequest, nil)
+		return
+	}
+
+	foundForum, err := h.uc.GetForumDetails(r.Context(), slug)
+	if err == nil && foundForum == (models.Forum{}) {
+		utils.Response(w, http.StatusNotFound, slug)
+		return
+	}
+	if err == nil {
+		utils.Response(w, http.StatusOK, foundForum)
+		return
+	}
+	utils.Response(w, http.StatusNotFound, slug)
 }

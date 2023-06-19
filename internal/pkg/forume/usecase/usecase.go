@@ -40,6 +40,16 @@ func (u *UseCase) ChangeUserInfo(ctx context.Context, user models.User) (models.
 		return models.User{}, http.StatusNotFound
 	}
 
+	if user.Email == "" {
+		user.Email = thisUser.Email
+	}
+	if user.About == "" {
+		user.About = thisUser.About
+	}
+	if user.FullName == "" {
+		user.FullName = thisUser.FullName
+	}
+
 	usersWithSameInfo, _ := u.repo.CheckUserForUniq(ctx, user)
 	if len(usersWithSameInfo) > 1 {
 		return models.User{}, http.StatusConflict
@@ -60,6 +70,10 @@ func (u *UseCase) CreateForum(ctx context.Context, forum models.Forum) ([]models
 	if author == (models.User{}) {
 		return []models.Forum{}, http.StatusNotFound
 	}
-
+	forum.User = author.NickName
 	return u.repo.CreateForum(ctx, forum)
+}
+
+func (u *UseCase) GetForumDetails(ctx context.Context, slug string) (models.Forum, error) {
+	return u.repo.GetForumDetails(ctx, slug)
 }

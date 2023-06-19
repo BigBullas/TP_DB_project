@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/jackc/pgx/v4"
@@ -68,7 +67,6 @@ func (r *repoPostgres) ChangeUserInfo(ctx context.Context, user models.User) (mo
 	const ChangeUserInfo = `UPDATE users SET FullName = $1, About = $2, Email = $3 WHERE Nickname = $4;`
 	_, err := r.Conn.Exec(ctx, ChangeUserInfo, user.FullName, user.About, user.Email, user.NickName)
 	if err == nil {
-		fmt.Println("repo user: ", user)
 		return user, http.StatusOK
 	}
 	return models.User{}, http.StatusInternalServerError
@@ -78,7 +76,6 @@ func (r *repoPostgres) CheckForumForUniq(ctx context.Context, forum models.Forum
 	const CheckForumForUniq = `SELECT * FROM forum WHERE Slug = $1;`
 	rows, err := r.Conn.Query(ctx, CheckForumForUniq, forum.Slug)
 	if err != nil {
-		fmt.Println("error in 78 ", err)
 		return nil, http.StatusInternalServerError
 	}
 	defer rows.Close()
@@ -88,13 +85,11 @@ func (r *repoPostgres) CheckForumForUniq(ctx context.Context, forum models.Forum
 		var f models.Forum
 		err := rows.Scan(&f.Title, &f.User, &f.Slug, &f.Posts, &f.Threads)
 		if err != nil {
-			fmt.Println("error in 88 ", err)
 			return nil, http.StatusInternalServerError
 		}
 		forums = append(forums, f)
 	}
 	if rows.Err() != nil {
-		fmt.Println("error in 95 ", rows.Err())
 		return nil, http.StatusInternalServerError
 	}
 	return forums, http.StatusOK
@@ -107,4 +102,19 @@ func (r *repoPostgres) CreateForum(ctx context.Context, forum models.Forum) ([]m
 		return []models.Forum{}, http.StatusInternalServerError
 	}
 	return []models.Forum{forum}, http.StatusCreated
+}
+
+func (r *repoPostgres) GetForumDetails(ctx context.Context, slug string) (models.Forum, error) {
+	const GetForumDetails = `SELECT * FROM forum WHERE Slug = $1;`
+
+	var fForum models.Forum
+	err := r.Conn.QueryRow(ctx, GetForumDetails, slug).
+		Scan(&fForum.Title, &fForum.User, &fForum.Slug, &fForum.Posts, &fForum.Threads)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Forum{}, nil
+		}
+		return models.Forum{}, err
+	}
+	return fForum, nil
 }
