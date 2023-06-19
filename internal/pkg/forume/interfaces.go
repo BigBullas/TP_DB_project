@@ -13,6 +13,8 @@ type Repository interface {
 	CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int)
 	CheckForumForUniq(ctx context.Context, forum models.Forum) ([]models.Forum, int)
 	GetForumDetails(ctx context.Context, slug string) (models.Forum, error)
+	CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int)
+	CheckThreadForUniq(ctx context.Context, thread models.Thread) ([]models.Thread, int)
 }
 
 type UseCase interface {
@@ -21,4 +23,5 @@ type UseCase interface {
 	ChangeUserInfo(ctx context.Context, user models.User) (models.User, int)
 	CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int)
 	GetForumDetails(ctx context.Context, slug string) (models.Forum, error)
+	CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int)
 }

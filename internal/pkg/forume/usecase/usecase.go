@@ -58,9 +58,9 @@ func (u *UseCase) ChangeUserInfo(ctx context.Context, user models.User) (models.
 }
 
 func (u *UseCase) CreateForum(ctx context.Context, forum models.Forum) ([]models.Forum, int) {
-	forumsWithSameSlag, _ := u.repo.CheckForumForUniq(ctx, forum)
-	if len(forumsWithSameSlag) > 0 {
-		return forumsWithSameSlag, http.StatusConflict
+	forumsWithSameSlug, _ := u.repo.CheckForumForUniq(ctx, forum)
+	if len(forumsWithSameSlug) > 0 {
+		return forumsWithSameSlug, http.StatusConflict
 	}
 
 	author, err := u.repo.GetUser(ctx, forum.User)
@@ -76,4 +76,33 @@ func (u *UseCase) CreateForum(ctx context.Context, forum models.Forum) ([]models
 
 func (u *UseCase) GetForumDetails(ctx context.Context, slug string) (models.Forum, error) {
 	return u.repo.GetForumDetails(ctx, slug)
+}
+
+func (u *UseCase) CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int) {
+	if thread.Slug != "" {
+		threadsWithSameSlug, _ := u.repo.CheckThreadForUniq(ctx, thread)
+		if len(threadsWithSameSlug) > 0 {
+			return threadsWithSameSlug, http.StatusConflict
+		}
+	}
+
+	author, err := u.repo.GetUser(ctx, thread.Author)
+	if err != nil {
+		return []models.Thread{}, http.StatusInternalServerError
+	}
+	if author == (models.User{}) {
+		return []models.Thread{}, http.StatusNotFound
+	}
+	thread.Author = author.NickName
+
+	forum, err := u.repo.GetForumDetails(ctx, thread.Forum)
+	if err != nil {
+		return []models.Thread{}, http.StatusInternalServerError
+	}
+	if forum == (models.Forum{}) {
+		return []models.Thread{}, http.StatusNotFound
+	}
+	thread.Forum = forum.Slug
+
+	return u.repo.CreateThread(ctx, thread)
 }

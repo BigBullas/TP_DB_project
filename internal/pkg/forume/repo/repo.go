@@ -118,3 +118,36 @@ func (r *repoPostgres) GetForumDetails(ctx context.Context, slug string) (models
 	}
 	return fForum, nil
 }
+
+func (r *repoPostgres) CheckThreadForUniq(ctx context.Context, thread models.Thread) ([]models.Thread, int) {
+	const CheckThreadForUniq = `SELECT * FROM thread WHERE Slug = $1;`
+	rows, err := r.Conn.Query(ctx, CheckThreadForUniq, thread.Slug)
+	if err != nil {
+		return nil, http.StatusInternalServerError
+	}
+	defer rows.Close()
+
+	var threads []models.Thread
+	for rows.Next() {
+		var t models.Thread
+		err := rows.Scan(&t.ID, &t.Title, &t.Author, &t.Forum, &t.Message, &t.Votes, &t.Slug, &t.Created)
+		if err != nil {
+			return nil, http.StatusInternalServerError
+		}
+		threads = append(threads, t)
+	}
+	if rows.Err() != nil {
+		return nil, http.StatusInternalServerError
+	}
+	return threads, http.StatusOK
+}
+
+func (r *repoPostgres) CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int) {
+	const CreateThread = `INSERT INTO thread(Title, Author, Forum, Message, Votes, Slug, Created) VALUES ($1, $2, $3, $4, $5, $6, $7) returning Id;`
+	err := r.Conn.QueryRow(ctx, CreateThread, thread.Title, thread.Author, thread.Forum,
+		thread.Message, thread.Votes, thread.Slug, thread.Created).Scan(&thread.ID)
+	if err != nil {
+		return []models.Thread{}, http.StatusInternalServerError
+	}
+	return []models.Thread{thread}, http.StatusCreated
+}

@@ -116,3 +116,35 @@ func (h *Handler) GetForumDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.Response(w, http.StatusNotFound, slug)
 }
+
+func (h *Handler) CreateThread(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug, flag := vars["slug"]
+	if !flag {
+		utils.Response(w, http.StatusBadRequest, nil)
+		return
+	}
+
+	thread := models.Thread{}
+	err := easyjson.UnmarshalFromReader(r.Body, &thread)
+	if err != nil {
+		utils.Response(w, http.StatusBadRequest, nil)
+		return
+	}
+	thread.Forum = slug
+
+	//fmt.Printf("delivery start, thread: %d, \n %s, \n %s, "+
+	//	"\n %s, \n %s, \n %d, \n %s",
+	//	thread.ID, thread.Title, thread.Author, thread.Forum, thread.Message, thread.Votes, thread.Slug)
+	createdThreads, status := h.uc.CreateThread(r.Context(), thread)
+	//fmt.Printf("delivery end, thread: %d, \n %s, \n %s, "+
+	//	"\n %s, \n %s, \n %d, \n %s \n\n\n",
+	//	createdThreads[0].ID, createdThreads[0].Title, createdThreads[0].Author, createdThreads[0].Forum,
+	//	createdThreads[0].Message, createdThreads[0].Votes, createdThreads[0].Slug)
+	if len(createdThreads) > 0 {
+		utils.Response(w, status, createdThreads[0])
+		return
+	}
+	utils.Response(w, status, thread.Title)
+
+}
