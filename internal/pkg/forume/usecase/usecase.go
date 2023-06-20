@@ -2,9 +2,11 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"net/http"
+	"strconv"
 )
 
 type UseCase struct {
@@ -116,4 +118,27 @@ func (u *UseCase) GetThreads(ctx context.Context, slug string, params models.Req
 		return []models.Thread{}, models.NotFoundForum
 	}
 	return u.repo.GetThreads(ctx, slug, params)
+}
+
+func (u *UseCase) CreatePosts(ctx context.Context, posts []models.Post, slugOrId string) ([]models.Post, int) {
+	var thisThread models.Thread
+	var errSlug error
+	var errId error
+
+	slugOrIdNum, err := strconv.Atoi(slugOrId)
+	if err != nil {
+		thisThread, errSlug = u.repo.GetThreadBySlug(ctx, slugOrId)
+	} else {
+		thisThread, errId = u.repo.GetThreadById(ctx, slugOrIdNum)
+	}
+	if errSlug != nil || errId != nil {
+		fmt.Println("useCase slugOrId ", errSlug, errId)
+		return []models.Post{}, http.StatusInternalServerError
+	}
+	if thisThread == (models.Thread{}) {
+		fmt.Println("delivery not fount thisThread")
+		return []models.Post{}, http.StatusNotFound
+	}
+	fmt.Println("useCase end")
+	return u.repo.CreatePosts(ctx, posts, thisThread)
 }

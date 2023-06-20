@@ -2,11 +2,14 @@ package repo
 
 import (
 	"context"
+	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"net/http"
+	"time"
 )
 
 type repoPostgres struct {
@@ -188,3 +191,100 @@ func (r *repoPostgres) GetThreads(ctx context.Context, slug string, params model
 	}
 	return fThreads, nil
 }
+
+func (r *repoPostgres) GetThreadBySlug(ctx context.Context, slug string) (models.Thread, error) {
+	const GetThreadBySlug = `SELECT Id, Forum, Slug FROM thread WHERE Slug = $1;`
+	var fThread models.Thread
+	err := r.Conn.QueryRow(ctx, GetThreadBySlug, slug).Scan(&fThread.ID, &fThread.Forum, &fThread.Slug)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Thread{}, nil
+		}
+		return models.Thread{}, err
+	}
+	return fThread, nil
+}
+
+func (r *repoPostgres) GetThreadById(ctx context.Context, id int) (models.Thread, error) {
+	const GetThreadBySlug = `SELECT Id, Forum, Slug FROM thread WHERE Id = $1;`
+	var fThread models.Thread
+	err := r.Conn.QueryRow(ctx, GetThreadBySlug, id).Scan(&fThread.ID, &fThread.Forum, &fThread.Slug)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Thread{}, nil
+		}
+		return models.Thread{}, err
+	}
+	return fThread, nil
+}
+
+func (r *repoPostgres) CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int) {
+	created := time.Now()
+	uniqueParents := mapset.NewSet()
+	values := make([]interface{}, 0)
+	query := "INSERT INTO post (Author, Created, Forum, IsEdited, Message, Parent, Thread) VALUES"
+
+	for k, post := range posts {
+		post.Forum = thread.Forum
+		post.Thread = thread.ID
+		post.Created = created
+
+		uniqueParents.Add(post.Parent)
+
+		query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d),", k*6+1, k*6+2, k*6+3, k*6+4, k*6+5, k*6+6)
+		values = append(values, post.Author, post.Created, post.Forum, post.IsEdited, post.Message, post.Parent, post.Thread)
+	}
+	query = query[:len(query)-1]
+	query += ` RETURNING id;`
+
+	//queryCheckParents := `SELECT EXISTS(SELECT 1 FROM post WHERE Id IN (` +
+	//	strings.TrimRight(strings.Repeat(" ?,", uniqueParents.Cardinality()), ",") + `));`
+	args := make([]interface{}, uniqueParents.Cardinality())
+	i := 0
+	queryCheckParents := "SELECT EXISTS (SELECT 1 FROM post WHERE Id IN ("
+	for id := range uniqueParents.Iter() {
+		queryCheckParents += fmt.Sprintf(" $%d,", i+1)
+		args[i] = id
+		i++
+	}
+	queryCheckParents = queryCheckParents[:len(query)-1] + "));"
+
+	var exists bool
+	err := r.Conn.QueryRow(ctx, queryCheckParents, args...).Scan(&exists)
+	if err != nil {
+		fmt.Println("Ошибка при выполнении SQL-запроса 111: ", err, " ", queryCheckParents, " ", args)
+		return []models.Post{}, http.StatusInternalServerError
+	}
+
+	if !exists {
+		fmt.Println("Не все посты найдены в таблице post. ", exists)
+		return []models.Post{}, http.StatusConflict
+	}
+
+	rows, err := r.Conn.Query(ctx, query, values...)
+	if err != nil {
+		fmt.Println("Ошибка при выполнении SQL-запроса 222: ", err, " ", query, " ", values)
+		return []models.Post{}, http.StatusInternalServerError
+	}
+	defer rows.Close()
+
+	for i := range posts {
+		if rows.Next() {
+			err = rows.Scan(&posts[i].ID)
+			if err != nil {
+				fmt.Println("repo scan rows ", err, posts)
+				return nil, http.StatusInternalServerError
+			}
+		}
+	}
+	if rows.Err() != nil {
+		fmt.Println("repo rows.err ", rows.Err())
+		return nil, http.StatusInternalServerError
+	}
+	fmt.Println("repo end ", posts)
+	return posts, http.StatusCreated
+}
+
+// TODO реализовать триггер, который будет менять path новым постам
+// TODO реализовать триггер, который будет увеличивать число постов у форума и ветки
+// TODO реализовать триггер, который будет увеличивать число веток у форума

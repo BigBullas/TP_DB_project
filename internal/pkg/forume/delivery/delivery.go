@@ -1,6 +1,8 @@
 package delivery
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	User "github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/BigBullas/TP_DB_project/internal/utils"
@@ -195,4 +197,33 @@ func (h *Handler) GetThreads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.Response(w, http.StatusNotFound, slug)
+}
+
+func (h *Handler) CreatePosts(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slugOrId, flag := vars["slug_or_id"]
+	if !flag {
+		fmt.Println("delivery slugOrId")
+		utils.Response(w, http.StatusBadRequest, nil)
+		return
+	}
+
+	var posts []models.Post
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&posts)
+	if err != nil {
+		fmt.Println("delivery decode")
+		utils.Response(w, http.StatusBadRequest, nil)
+		return
+	}
+
+	if len(posts) == 0 {
+		fmt.Println("delivery len = 0")
+		utils.Response(w, http.StatusCreated, []models.Post{})
+		return
+	}
+
+	createdPosts, status := h.uc.CreatePosts(r.Context(), posts, slugOrId)
+	fmt.Println("delivery end ", status)
+	utils.Response(w, status, createdPosts)
 }

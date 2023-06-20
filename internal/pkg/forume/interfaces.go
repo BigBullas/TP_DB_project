@@ -16,6 +16,9 @@ type Repository interface {
 	CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int)
 	CheckThreadForUniq(ctx context.Context, thread models.Thread) ([]models.Thread, int)
 	GetThreads(ctx context.Context, slug string, params models.RequestParameters) ([]models.Thread, error)
+	GetThreadBySlug(ctx context.Context, slug string) (models.Thread, error)
+	GetThreadById(ctx context.Context, id int) (models.Thread, error)
+	CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int)
 }
 
 type UseCase interface {
@@ -26,4 +29,5 @@ type UseCase interface {
 	GetForumDetails(ctx context.Context, slug string) (models.Forum, error)
 	CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int)
 	GetThreads(ctx context.Context, slug string, params models.RequestParameters) ([]models.Thread, error)
+	CreatePosts(ctx context.Context, posts []models.Post, slugOrId string) ([]models.Post, int)
 }
