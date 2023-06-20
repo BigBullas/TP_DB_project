@@ -151,3 +151,40 @@ func (r *repoPostgres) CreateThread(ctx context.Context, thread models.Thread) (
 	}
 	return []models.Thread{thread}, http.StatusCreated
 }
+
+func (r *repoPostgres) GetThreads(ctx context.Context, slug string, params models.RequestParameters) ([]models.Thread, error) {
+	var GetThreads = `SELECT * FROM thread WHERE Forum = $1`
+
+	if params.Desc {
+		GetThreads = GetThreads + ` AND created <= $2 ORDER BY created DESC, id DESC`
+		if params.Since == "" {
+			params.Since = "9999-12-31T23:59:59.000Z"
+		}
+	} else {
+		GetThreads = GetThreads + ` AND created >= $2  ORDER BY created, id`
+		if params.Since == "" {
+			params.Since = "0001-01-01T00:00:00.000Z"
+		}
+	}
+	GetThreads = GetThreads + ` LIMIT $3;`
+
+	rows, err := r.Conn.Query(ctx, GetThreads, slug, params.Since, params.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fThreads []models.Thread
+	for rows.Next() {
+		var t models.Thread
+		err := rows.Scan(&t.ID, &t.Title, &t.Author, &t.Forum, &t.Message, &t.Votes, &t.Slug, &t.Created)
+		if err != nil {
+			return nil, err
+		}
+		fThreads = append(fThreads, t)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return fThreads, nil
+}

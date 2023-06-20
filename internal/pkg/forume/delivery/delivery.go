@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mailru/easyjson"
 	"net/http"
+	"strconv"
 )
 
 type Handler struct {
@@ -137,14 +138,61 @@ func (h *Handler) CreateThread(w http.ResponseWriter, r *http.Request) {
 	//	"\n %s, \n %s, \n %d, \n %s",
 	//	thread.ID, thread.Title, thread.Author, thread.Forum, thread.Message, thread.Votes, thread.Slug)
 	createdThreads, status := h.uc.CreateThread(r.Context(), thread)
-	//fmt.Printf("delivery end, thread: %d, \n %s, \n %s, "+
-	//	"\n %s, \n %s, \n %d, \n %s \n\n\n",
-	//	createdThreads[0].ID, createdThreads[0].Title, createdThreads[0].Author, createdThreads[0].Forum,
-	//	createdThreads[0].Message, createdThreads[0].Votes, createdThreads[0].Slug)
 	if len(createdThreads) > 0 {
 		utils.Response(w, status, createdThreads[0])
 		return
 	}
 	utils.Response(w, status, thread.Title)
+}
 
+func (h *Handler) GetThreads(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug, flag := vars["slug"]
+	if !flag {
+		utils.Response(w, http.StatusBadRequest, nil)
+		return
+	}
+	limitInput := r.URL.Query().Get("limit")
+	sinceInput := r.URL.Query().Get("since")
+	descInput := r.URL.Query().Get("desc")
+
+	params := models.RequestParameters{}
+	if limitInput == "" {
+		params.Limit = 100
+	} else {
+		limit, errLimit := strconv.Atoi(limitInput)
+		if errLimit != nil {
+			utils.Response(w, http.StatusNotFound, slug)
+			return
+		}
+		params.Limit = limit
+	}
+
+	params.Since = sinceInput
+
+	if descInput == "" {
+		params.Desc = false
+	} else {
+		desc, errDesc := strconv.ParseBool(descInput)
+		if errDesc != nil {
+			utils.Response(w, http.StatusNotFound, slug)
+			return
+		}
+		params.Desc = desc
+	}
+
+	foundThreads, err := h.uc.GetThreads(r.Context(), slug, params)
+	if err == models.NotFoundForum {
+		utils.Response(w, http.StatusNotFound, slug)
+		return
+	}
+	if err == nil && len(foundThreads) == 0 {
+		utils.Response(w, http.StatusOK, []models.Thread{})
+		return
+	}
+	if err == nil {
+		utils.Response(w, http.StatusOK, foundThreads)
+		return
+	}
+	utils.Response(w, http.StatusNotFound, slug)
 }

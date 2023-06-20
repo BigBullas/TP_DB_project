@@ -37,7 +37,7 @@ func main() {
 		forum.HandleFunc("/forum/{slug}/details", fHandler.GetForumDetails).Methods(http.MethodGet)
 		forum.HandleFunc("/forum/{slug}/create", fHandler.CreateThread).Methods(http.MethodPost)
 		//forum.HandleFunc("/forum/{slug}/users", fHandler.GetUsersForum).Methods(http.MethodGet)
-		//forum.HandleFunc("/forum/{slug}/threads", fHandler.GetThreadsForum).Methods(http.MethodGet)
+		forum.HandleFunc("/forum/{slug}/threads", fHandler.GetThreads).Methods(http.MethodGet)
 
 		//forum.HandleFunc("/post/{id}/details", fHandler.GetPostInfo).Methods(http.MethodGet)
 		//forum.HandleFunc("/post/{id}/details", fHandler.UpdatePostInfo).Methods(http.MethodPost)

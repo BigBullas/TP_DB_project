@@ -106,3 +106,14 @@ func (u *UseCase) CreateThread(ctx context.Context, thread models.Thread) ([]mod
 
 	return u.repo.CreateThread(ctx, thread)
 }
+
+func (u *UseCase) GetThreads(ctx context.Context, slug string, params models.RequestParameters) ([]models.Thread, error) {
+	thisForum, err := u.repo.GetForumDetails(ctx, slug)
+	if err != nil {
+		return []models.Thread{}, models.InternalError
+	}
+	if thisForum == (models.Forum{}) {
+		return []models.Thread{}, models.NotFoundForum
+	}
+	return u.repo.GetThreads(ctx, slug, params)
+}
