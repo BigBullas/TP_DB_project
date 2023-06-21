@@ -19,6 +19,9 @@ type Repository interface {
 	GetThreadBySlug(ctx context.Context, slug string) (models.Thread, error)
 	GetThreadById(ctx context.Context, id int) (models.Thread, error)
 	CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int)
+	ChangeVote(ctx context.Context, vote models.Vote, thread models.Thread) (models.Thread, error)
+	ChangeThreadInfo(ctx context.Context, thread models.Thread) (models.Thread, int)
+	GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error)
 }
 
 type UseCase interface {
@@ -31,4 +34,7 @@ type UseCase interface {
 	GetThreads(ctx context.Context, slug string, params models.RequestParameters) ([]models.Thread, error)
 	GetThreadBySlugOrId(ctx context.Context, slugOrId string) (models.Thread, error)
 	CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int)
+	ChangeVote(ctx context.Context, vote models.Vote, thread models.Thread) (models.Thread, error)
+	ChangeThreadInfo(ctx context.Context, newThread models.Thread, oldThread models.Thread) (models.Thread, int)
+	GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error)
 }

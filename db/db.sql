@@ -66,3 +66,30 @@ CREATE UNLOGGED TABLE users_forum
     FOREIGN KEY (Slug) REFERENCES "forum" (Slug),
     UNIQUE (Nickname, Slug)
 );
+
+CREATE OR REPLACE FUNCTION addUserFirstVote() RETURNS TRIGGER AS
+$$
+BEGIN
+UPDATE thread SET Votes=(Votes+New.Voice) WHERE Id = NEW.Thread;
+return NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_insert_vote
+    AFTER INSERT ON vote
+    FOR EACH ROW
+    EXECUTE PROCEDURE addUserFirstVote();
+
+
+CREATE OR REPLACE FUNCTION changeVoteOnThread() RETURNS TRIGGER AS
+$$
+BEGIN
+UPDATE thread SET Votes=(Votes+2*New.Voice) WHERE Id = NEW.Thread;
+return NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_update_vote
+    AFTER UPDATE ON vote
+    FOR EACH ROW
+    EXECUTE PROCEDURE changeVoteOnThread();

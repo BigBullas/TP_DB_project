@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"net/http"
@@ -132,11 +131,9 @@ func (u *UseCase) GetThreadBySlugOrId(ctx context.Context, slugOrId string) (mod
 		thisThread, errId = u.repo.GetThreadById(ctx, slugOrIdNum)
 	}
 	if errSlug != nil || errId != nil {
-		fmt.Println("useCase slugOrId ", errSlug, errId)
 		return models.Thread{}, models.InternalError
 	}
 	if thisThread == (models.Thread{}) {
-		fmt.Println("delivery not fount thisThread")
 		return models.Thread{}, models.NotFound
 	}
 	return thisThread, nil
@@ -144,4 +141,35 @@ func (u *UseCase) GetThreadBySlugOrId(ctx context.Context, slugOrId string) (mod
 
 func (u *UseCase) CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int) {
 	return u.repo.CreatePosts(ctx, posts, thread)
+}
+
+func (u *UseCase) ChangeVote(ctx context.Context, vote models.Vote, thread models.Thread) (models.Thread, error) {
+	return u.repo.ChangeVote(ctx, vote, thread)
+}
+
+func (u *UseCase) ChangeThreadInfo(ctx context.Context, newThread models.Thread, oldThread models.Thread) (models.Thread, int) {
+	changeFlag := false
+	if newThread.Title != "" {
+		changeFlag = true
+		oldThread.Title = newThread.Title
+	}
+	if newThread.Message != "" {
+		changeFlag = true
+		oldThread.Message = newThread.Message
+	}
+	if !changeFlag {
+		return oldThread, http.StatusOK
+	}
+	return u.repo.ChangeThreadInfo(ctx, oldThread)
+}
+
+func (u *UseCase) GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error) {
+	thisForum, err := u.repo.GetForumDetails(ctx, slug)
+	if err != nil {
+		return []models.User{}, models.InternalError
+	}
+	if thisForum == (models.Forum{}) {
+		return []models.User{}, models.NotFound
+	}
+	return u.repo.GetUsers(ctx, slug, params)
 }

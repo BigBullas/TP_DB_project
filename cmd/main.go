@@ -25,9 +25,9 @@ func main() {
 
 	fRepo := repo.NewRepoPostgres(pool)
 	fUseCase := usecase.NewRepoUseCase(fRepo)
-	fHandler := delivery.NewForumHandler(fUseCase) // почему NewRepoPostgres, NewRepoUseCase, а NewForumHandler
+	fHandler := delivery.NewForumHandler(fUseCase)
 
-	forum := muxRoute.PathPrefix("/api").Subrouter() // в будущем поменять либо user на forum либо наоборот
+	forum := muxRoute.PathPrefix("/api").Subrouter()
 	{
 		forum.HandleFunc("/user/{nickname}/create", fHandler.CreateUser).Methods(http.MethodPost)
 		forum.HandleFunc("/user/{nickname}/profile", fHandler.GetUser).Methods(http.MethodGet)
@@ -36,7 +36,7 @@ func main() {
 		forum.HandleFunc("/forum/create", fHandler.CreateForum).Methods(http.MethodPost)
 		forum.HandleFunc("/forum/{slug}/details", fHandler.GetForumDetails).Methods(http.MethodGet)
 		forum.HandleFunc("/forum/{slug}/create", fHandler.CreateThread).Methods(http.MethodPost)
-		//forum.HandleFunc("/forum/{slug}/users", fHandler.GetUsersForum).Methods(http.MethodGet)
+		forum.HandleFunc("/forum/{slug}/users", fHandler.GetUsers).Methods(http.MethodGet)
 		forum.HandleFunc("/forum/{slug}/threads", fHandler.GetThreads).Methods(http.MethodGet)
 
 		//forum.HandleFunc("/post/{id}/details", fHandler.GetPostInfo).Methods(http.MethodGet)
@@ -46,10 +46,10 @@ func main() {
 		//forum.HandleFunc("/service/status", fHandler.GetStatus).Methods(http.MethodGet)
 
 		forum.HandleFunc("/thread/{slug_or_id}/create", fHandler.CreatePosts).Methods(http.MethodPost)
-		//forum.HandleFunc("/thread/{slug_or_id}/details", fHandler.GetThreadInfo).Methods(http.MethodGet)
-		//forum.HandleFunc("/thread/{slug_or_id}/details", fHandler.UpdateThreadInfo).Methods(http.MethodPost)
+		forum.HandleFunc("/thread/{slug_or_id}/details", fHandler.GetThreadDetails).Methods(http.MethodGet)
+		forum.HandleFunc("/thread/{slug_or_id}/details", fHandler.ChangeThreadInfo).Methods(http.MethodPost)
 		//forum.HandleFunc("/thread/{slug_or_id}/posts", fHandler.GetPostOfThread).Methods(http.MethodGet)
-		//forum.HandleFunc("/thread/{slug_or_id}/vote", fHandler.Voted).Methods(http.MethodPost)
+		forum.HandleFunc("/thread/{slug_or_id}/vote", fHandler.ChangeVote).Methods(http.MethodPost)
 	}
 
 	http.Handle("/", muxRoute)
