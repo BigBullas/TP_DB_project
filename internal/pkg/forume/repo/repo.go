@@ -221,44 +221,111 @@ func (r *repoPostgres) GetThreadById(ctx context.Context, id int) (models.Thread
 func (r *repoPostgres) CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int) {
 	created := time.Now()
 	uniqueParents := mapset.NewSet()
+	var uniqueParentsFlag bool
+	uniqueAuthors := mapset.NewSet()
 	values := make([]interface{}, 0)
 	query := "INSERT INTO post (Author, Created, Forum, IsEdited, Message, Parent, Thread) VALUES"
 
-	for k, post := range posts {
+	fmt.Println("repo start ", thread)
+
+	for k := range posts {
+		post := &posts[k]
+		//fmt.Println("repo перебор постов ", k, " ", post)
 		post.Forum = thread.Forum
 		post.Thread = thread.ID
 		post.Created = created
 
+		if post.Parent != 0 {
+			uniqueParentsFlag = true
+		}
 		uniqueParents.Add(post.Parent)
 
-		query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d),", k*6+1, k*6+2, k*6+3, k*6+4, k*6+5, k*6+6)
+		if post.Author == "" {
+			fmt.Println("repo post.Author is null")
+			return nil, http.StatusBadRequest
+		}
+		uniqueAuthors.Add(post.Author)
+
+		query += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d),", k*7+1, k*7+2, k*7+3, k*7+4, k*7+5, k*7+6, k*7+7)
 		values = append(values, post.Author, post.Created, post.Forum, post.IsEdited, post.Message, post.Parent, post.Thread)
+		//fmt.Println("repo перебор постов 2 ", post, " ", uniqueParents, " ", query, " ", values)
 	}
 	query = query[:len(query)-1]
 	query += ` RETURNING id;`
+	fmt.Println("repo конец перебора постов ", uniqueParents, " ", query, " ", values, " ", uniqueParents.Cardinality(), " ", posts)
 
-	//queryCheckParents := `SELECT EXISTS(SELECT 1 FROM post WHERE Id IN (` +
-	//	strings.TrimRight(strings.Repeat(" ?,", uniqueParents.Cardinality()), ",") + `));`
-	args := make([]interface{}, uniqueParents.Cardinality())
-	i := 0
-	queryCheckParents := "SELECT EXISTS (SELECT 1 FROM post WHERE Id IN ("
-	for id := range uniqueParents.Iter() {
-		queryCheckParents += fmt.Sprintf(" $%d,", i+1)
-		args[i] = id
-		i++
+	queryCheckAuthors := "SELECT EXISTS (SELECT 1 FROM users WHERE Nickname IN ("
+	it := 0
+	argsNickname := make([]interface{}, uniqueAuthors.Cardinality())
+	for author := range uniqueAuthors.Iter() {
+		fmt.Println("repo перебор uniqueAuthors ", author, " ", it)
+		queryCheckAuthors += fmt.Sprintf(" $%d,", it+1)
+		argsNickname[it] = author
+		it++
+		fmt.Println("repo перебор uniqueParents 2 ", queryCheckAuthors, " ", argsNickname)
 	}
-	queryCheckParents = queryCheckParents[:len(query)-1] + "));"
-
-	var exists bool
-	err := r.Conn.QueryRow(ctx, queryCheckParents, args...).Scan(&exists)
-	if err != nil {
-		fmt.Println("Ошибка при выполнении SQL-запроса 111: ", err, " ", queryCheckParents, " ", args)
-		return []models.Post{}, http.StatusInternalServerError
+	queryCheckAuthors = queryCheckAuthors[:len(queryCheckAuthors)-1] + "));"
+	fmt.Println("repo конец перебора uniqueParents ", queryCheckAuthors, " ", argsNickname)
+	var existsAuthor bool
+	errAuthor := r.Conn.QueryRow(ctx, queryCheckAuthors, argsNickname...).Scan(&existsAuthor)
+	if errAuthor != nil {
+		fmt.Println("Ошибка при выполнении SQL-запроса 000: ", errAuthor, " ", queryCheckAuthors, " ", argsNickname)
+		return nil, http.StatusInternalServerError
+	}
+	if !existsAuthor {
+		fmt.Println("repo кто то из авторов новых постов не существует \n")
+		return nil, http.StatusNotFound
 	}
 
-	if !exists {
-		fmt.Println("Не все посты найдены в таблице post. ", exists)
-		return []models.Post{}, http.StatusConflict
+	if uniqueParentsFlag {
+		args := make([]interface{}, uniqueParents.Cardinality())
+		i := 0
+		//SELECT EXISTS (SELECT 1 FROM post WHERE Id IN (1, 2, 3)) as exists, thread FROM post WHERE Id IN (1, 2, 3);
+		queryCheckParents := "SELECT EXISTS (SELECT 1 FROM post WHERE Id IN ("
+		queryCheckParentsPart2 := ")) as exists, thread FROM post WHERE Id IN ("
+		for id := range uniqueParents.Iter() {
+			//fmt.Println("repo перебор uniqueParents ", id, " ", i)
+			queryCheckParents += fmt.Sprintf(" $%d,", i+1)
+			queryCheckParentsPart2 += fmt.Sprintf(" $%d,", i+1)
+			args[i] = id
+			i++
+			//fmt.Println("repo перебор uniqueParents 2 ", queryCheckParents, " ", args)
+		}
+		queryCheckParentsPart2 = queryCheckParentsPart2[:len(queryCheckParentsPart2)-1] + ");"
+		queryCheckParents = queryCheckParents[:len(queryCheckParents)-1] + queryCheckParentsPart2
+		fmt.Println("repo конец перебора uniqueParents ", queryCheckParents, " ", args)
+
+		var exists bool
+		var fThread int
+		rows, err := r.Conn.Query(ctx, queryCheckParents, args...)
+		if err != nil {
+			fmt.Println("Ошибка при выполнении SQL-запроса 111: ", err, " ", queryCheckParents, " ", args)
+			return []models.Post{}, http.StatusInternalServerError
+		}
+		defer rows.Close()
+
+		for j := 0; j < uniqueParents.Cardinality(); j++ {
+			if rows.Next() {
+				err = rows.Scan(&exists, &fThread)
+				if err != nil {
+					fmt.Println("repo checkThread rows.Scan ", err)
+					return nil, http.StatusInternalServerError
+				}
+				if fThread != thread.ID {
+					fmt.Println("repo conflict ", fThread, " ", thread.ID)
+					return nil, http.StatusConflict
+				}
+			}
+		}
+		if rows.Err() != nil {
+			fmt.Println("repo rows.err ", rows.Err())
+			return nil, http.StatusInternalServerError
+		}
+
+		if !exists {
+			fmt.Println("Не все посты найдены в таблице post. ", exists)
+			return []models.Post{}, http.StatusConflict
+		}
 	}
 
 	rows, err := r.Conn.Query(ctx, query, values...)
@@ -268,20 +335,24 @@ func (r *repoPostgres) CreatePosts(ctx context.Context, posts []models.Post, thr
 	}
 	defer rows.Close()
 
-	for i := range posts {
+	//fmt.Println("repo перед перебором результата запроса")
+	for i, _ := range posts {
+		//fmt.Println("repo перебор post ", i)
 		if rows.Next() {
+			//fmt.Println("repo rows.Next() ")
 			err = rows.Scan(&posts[i].ID)
+			//fmt.Println("repo после rows.Scan ", i, " ", posts)
 			if err != nil {
-				fmt.Println("repo scan rows ", err, posts)
+				//fmt.Println("repo scan rows ", err, posts)
 				return nil, http.StatusInternalServerError
 			}
 		}
 	}
 	if rows.Err() != nil {
-		fmt.Println("repo rows.err ", rows.Err())
+		//fmt.Println("repo rows.err ", rows.Err())
 		return nil, http.StatusInternalServerError
 	}
-	fmt.Println("repo end ", posts)
+	//fmt.Println("repo end ", posts)
 	return posts, http.StatusCreated
 }
 

@@ -7,12 +7,12 @@ import (
 	"net/http"
 )
 
-func Response(w http.ResponseWriter, status int, body interface{}) {
+func Response(w http.ResponseWriter, status int, body interface{}, flagMessageConflict bool) {
 	if body != nil {
 		w.Header().Set("Content-Type", "application/json")
 	}
 	w.WriteHeader(status)
-	if status == http.StatusNotFound && body != nil {
+	if status == http.StatusNotFound && body != nil || flagMessageConflict {
 		jsn, err := json.Marshal(models.ErrorResponse{Message: fmt.Sprintf("Can't find the required #%s\\n", body)})
 		if err != nil {
 			return

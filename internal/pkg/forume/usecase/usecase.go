@@ -115,12 +115,12 @@ func (u *UseCase) GetThreads(ctx context.Context, slug string, params models.Req
 		return []models.Thread{}, models.InternalError
 	}
 	if thisForum == (models.Forum{}) {
-		return []models.Thread{}, models.NotFoundForum
+		return []models.Thread{}, models.NotFound
 	}
 	return u.repo.GetThreads(ctx, slug, params)
 }
 
-func (u *UseCase) CreatePosts(ctx context.Context, posts []models.Post, slugOrId string) ([]models.Post, int) {
+func (u *UseCase) GetThreadBySlugOrId(ctx context.Context, slugOrId string) (models.Thread, error) {
 	var thisThread models.Thread
 	var errSlug error
 	var errId error
@@ -133,12 +133,15 @@ func (u *UseCase) CreatePosts(ctx context.Context, posts []models.Post, slugOrId
 	}
 	if errSlug != nil || errId != nil {
 		fmt.Println("useCase slugOrId ", errSlug, errId)
-		return []models.Post{}, http.StatusInternalServerError
+		return models.Thread{}, models.InternalError
 	}
 	if thisThread == (models.Thread{}) {
 		fmt.Println("delivery not fount thisThread")
-		return []models.Post{}, http.StatusNotFound
+		return models.Thread{}, models.NotFound
 	}
-	fmt.Println("useCase end")
-	return u.repo.CreatePosts(ctx, posts, thisThread)
+	return thisThread, nil
+}
+
+func (u *UseCase) CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int) {
+	return u.repo.CreatePosts(ctx, posts, thread)
 }

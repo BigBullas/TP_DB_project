@@ -29,5 +29,6 @@ type UseCase interface {
 	GetForumDetails(ctx context.Context, slug string) (models.Forum, error)
 	CreateThread(ctx context.Context, thread models.Thread) ([]models.Thread, int)
 	GetThreads(ctx context.Context, slug string, params models.RequestParameters) ([]models.Thread, error)
-	CreatePosts(ctx context.Context, posts []models.Post, slugOrId string) ([]models.Post, int)
+	GetThreadBySlugOrId(ctx context.Context, slugOrId string) (models.Thread, error)
+	CreatePosts(ctx context.Context, posts []models.Post, thread models.Thread) ([]models.Post, int)
 }
