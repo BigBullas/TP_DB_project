@@ -189,3 +189,11 @@ func (u *UseCase) ChangePostInfo(ctx context.Context, newPost models.Post, oldPo
 	oldPost.IsEdited = true
 	return u.repo.ChangePostInfo(ctx, oldPost)
 }
+
+func (u *UseCase) GetStatus(ctx context.Context) (models.Info, int) {
+	return u.repo.GetStatus(ctx)
+}
+
+func (u *UseCase) Clear(ctx context.Context) int {
+	return u.repo.Clear(ctx)
+}

@@ -529,6 +529,9 @@ func (r *repoPostgres) GetPostDetails(ctx context.Context, id int, related []str
 		return models.PostDetailed{}, errScan
 	}
 	return fPost, nil
+	// SELECT post.*, author.*
+	//FROM (SELECT * FROM post WHERE id = $1) AS post
+	//JOIN author ON post.author = author.id;
 }
 
 func (r *repoPostgres) ChangePostInfo(ctx context.Context, post models.Post) (models.Post, int) {
@@ -540,46 +543,50 @@ func (r *repoPostgres) ChangePostInfo(ctx context.Context, post models.Post) (mo
 	return models.Post{}, http.StatusInternalServerError
 }
 
-// TODO реализовать триггер, который будет менять path новым постам
-// реализовать триггер, который будет увеличивать число постов у форума
-// реализовать триггер, который будет увеличивать число веток у форума
+func (r *repoPostgres) GetStatus(ctx context.Context) (models.Info, int) {
+	countUsers := "SELECT count(*) FROM users"
+	countForums := "SELECT count(*) FROM forum"
+	countThreads := "SELECT count(*) FROM thread"
+	countPosts := "SELECT count(*) FROM post"
 
-// CREATE OR REPLACE FUNCTION addThread() RETURNS TRIGGER AS
-//$update_forum$
-//BEGIN
-//UPDATE forum SET Threads=(Threads+1) WHERE Slug = NEW.Forum;
-//return NEW;
-//END
-//$update_forum$ LANGUAGE plpgsql;
-//
-//CREATE TRIGGER on_insert_thread
-//    AFTER INSERT
-//    ON threads
-//    FOR EACH ROW
-//    EXECUTE PROCEDURE addThread();
-//
+	var info models.Info
 
-//
-//CREATE OR REPLACE FUNCTION addPost() RETURNS TRIGGER AS
-//$update_forum$
-//DECLARE
-//post_parent_path INTEGER[];
-//BEGIN
-//    IF (NEW.parent = 0) THEN
-//        NEW.path := array_append(NEW.path, NEW.id);
-//ELSE
-//SELECT path FROM posts WHERE id = NEW.parent INTO post_parent_path;
-//NEW.path := post_parent_path || NEW.id;
-//END IF;
-//UPDATE forum SET Posts=(Posts+1) WHERE Slug = NEW.Forum;
-//return NEW;
-//END
-//$update_forum$ LANGUAGE plpgsql;
-//
-//CREATE TRIGGER on_insert_post
-//    BEFORE INSERT
-//    ON posts
-//    FOR EACH ROW
-//    EXECUTE PROCEDURE addPost();
+	err := r.Conn.QueryRow(ctx, countUsers).Scan(&info.Users)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Info{}, http.StatusNotFound
+		}
+		return models.Info{}, http.StatusInternalServerError
+	}
+	err = r.Conn.QueryRow(ctx, countForums).Scan(&info.Forums)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Info{}, http.StatusNotFound
+		}
+		return models.Info{}, http.StatusInternalServerError
+	}
+	err = r.Conn.QueryRow(ctx, countThreads).Scan(&info.Threads)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Info{}, http.StatusNotFound
+		}
+		return models.Info{}, http.StatusInternalServerError
+	}
+	err = r.Conn.QueryRow(ctx, countPosts).Scan(&info.Posts)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.Info{}, http.StatusNotFound
+		}
+		return models.Info{}, http.StatusInternalServerError
+	}
+	return info, http.StatusOK
+}
 
-//
+func (r *repoPostgres) Clear(ctx context.Context) int {
+	const ClearAll = `TRUNCATE TABLE users, forum, thread, post, vote, users_forum  CASCADE;`
+	_, err := r.Conn.Exec(ctx, ClearAll)
+	if err != nil {
+		return http.StatusInternalServerError
+	}
+	return http.StatusOK
+}

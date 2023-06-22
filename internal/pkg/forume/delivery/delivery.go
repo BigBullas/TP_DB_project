@@ -465,3 +465,13 @@ func (h *Handler) ChangePostInfo(w http.ResponseWriter, r *http.Request) {
 	changedPost, status := h.uc.ChangePostInfo(r.Context(), post, foundPost.Post)
 	utils.Response(w, status, changedPost, false)
 }
+
+func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
+	info, status := h.uc.GetStatus(r.Context())
+	utils.Response(w, status, info, false)
+}
+
+func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) {
+	status := h.uc.Clear(r.Context())
+	utils.Response(w, status, nil, false)
+}

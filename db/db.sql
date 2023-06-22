@@ -158,7 +158,16 @@ CREATE TRIGGER new_thread_in_forum
 
 CREATE OR REPLACE FUNCTION addPostInForum() RETURNS TRIGGER AS
 $$
+DECLARE
+parent_path INTEGER[];
 BEGIN
+IF (NEW.parent = 0) THEN
+    NEW.path := array_append(NEW.path, NEW.id);
+ELSE
+    SELECT Path FROM posts WHERE Id = NEW.parent INTO parent_path;
+    NEW.path := parent_path || NEW.id;
+END IF;
+
 UPDATE forum SET Posts=(Posts + 1) WHERE Slug = NEW.Forum;
 return NEW;
 END

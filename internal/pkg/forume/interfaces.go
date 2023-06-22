@@ -24,6 +24,8 @@ type Repository interface {
 	GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error)
 	GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error)
 	ChangePostInfo(ctx context.Context, post models.Post) (models.Post, int)
+	GetStatus(ctx context.Context) (models.Info, int)
+	Clear(ctx context.Context) int
 }
 
 type UseCase interface {
@@ -41,4 +43,6 @@ type UseCase interface {
 	GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error)
 	GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error)
 	ChangePostInfo(ctx context.Context, newPost models.Post, oldPost models.Post) (models.Post, int)
+	GetStatus(ctx context.Context) (models.Info, int)
+	Clear(ctx context.Context) int
 }
