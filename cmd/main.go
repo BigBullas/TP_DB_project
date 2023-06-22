@@ -40,7 +40,7 @@ func main() {
 		forum.HandleFunc("/forum/{slug}/threads", fHandler.GetThreads).Methods(http.MethodGet)
 
 		forum.HandleFunc("/post/{id}/details", fHandler.GetPostDetails).Methods(http.MethodGet)
-		//forum.HandleFunc("/post/{id}/details", fHandler.UpdatePostInfo).Methods(http.MethodPost)
+		forum.HandleFunc("/post/{id}/details", fHandler.ChangePostInfo).Methods(http.MethodPost)
 
 		//forum.HandleFunc("/service/clear", fHandler.GetClear).Methods(http.MethodPost)
 		//forum.HandleFunc("/service/status", fHandler.GetStatus).Methods(http.MethodGet)

@@ -23,6 +23,7 @@ type Repository interface {
 	ChangeThreadInfo(ctx context.Context, thread models.Thread) (models.Thread, int)
 	GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error)
 	GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error)
+	ChangePostInfo(ctx context.Context, post models.Post) (models.Post, int)
 }
 
 type UseCase interface {
@@ -39,4 +40,5 @@ type UseCase interface {
 	ChangeThreadInfo(ctx context.Context, newThread models.Thread, oldThread models.Thread) (models.Thread, int)
 	GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error)
 	GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error)
+	ChangePostInfo(ctx context.Context, newPost models.Post, oldPost models.Post) (models.Post, int)
 }

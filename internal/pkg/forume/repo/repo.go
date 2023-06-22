@@ -531,6 +531,15 @@ func (r *repoPostgres) GetPostDetails(ctx context.Context, id int, related []str
 	return fPost, nil
 }
 
+func (r *repoPostgres) ChangePostInfo(ctx context.Context, post models.Post) (models.Post, int) {
+	const ChangePostInfo = `UPDATE post SET Message = $1, IsEdited = true WHERE Id = $2;`
+	_, err := r.Conn.Exec(ctx, ChangePostInfo, post.Message, post.ID)
+	if err == nil {
+		return post, http.StatusOK
+	}
+	return models.Post{}, http.StatusInternalServerError
+}
+
 // TODO реализовать триггер, который будет менять path новым постам
 // реализовать триггер, который будет увеличивать число постов у форума
 // реализовать триггер, который будет увеличивать число веток у форума

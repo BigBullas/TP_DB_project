@@ -427,3 +427,41 @@ func (h *Handler) GetPostDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.Response(w, http.StatusNotFound, id, false)
 }
+
+func (h *Handler) ChangePostInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sId, flag := vars["id"]
+	if !flag {
+		utils.Response(w, http.StatusBadRequest, nil, false)
+		return
+	}
+	id, err := strconv.Atoi(sId)
+	if err != nil {
+		utils.Response(w, http.StatusBadRequest, nil, false)
+		return
+	}
+
+	post := models.Post{}
+	err = easyjson.UnmarshalFromReader(r.Body, &post)
+	if err != nil {
+		utils.Response(w, http.StatusBadRequest, nil, false)
+		return
+	}
+
+	foundPost, errPost := h.uc.GetPostDetails(r.Context(), id, []string{})
+	if errPost == models.InternalError {
+		utils.Response(w, http.StatusInternalServerError, nil, false)
+		return
+	}
+	if errPost == models.NotFound {
+		utils.Response(w, http.StatusNotFound, id, false)
+		return
+	}
+	if err == nil && foundPost.Post.Author == "" {
+		utils.Response(w, http.StatusNotFound, id, false)
+		return
+	}
+
+	changedPost, status := h.uc.ChangePostInfo(r.Context(), post, foundPost.Post)
+	utils.Response(w, status, changedPost, false)
+}

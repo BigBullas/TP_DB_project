@@ -177,3 +177,15 @@ func (u *UseCase) GetUsers(ctx context.Context, slug string, params models.Reque
 func (u *UseCase) GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error) {
 	return u.repo.GetPostDetails(ctx, id, related)
 }
+
+func (u *UseCase) ChangePostInfo(ctx context.Context, newPost models.Post, oldPost models.Post) (models.Post, int) {
+	if newPost.Message == "" {
+		return oldPost, http.StatusOK
+	}
+	if newPost.Message == oldPost.Message {
+		return oldPost, http.StatusOK
+	}
+	oldPost.Message = newPost.Message
+	oldPost.IsEdited = true
+	return u.repo.ChangePostInfo(ctx, oldPost)
+}
