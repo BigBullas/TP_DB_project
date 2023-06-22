@@ -9,6 +9,7 @@ import (
 	"github.com/mailru/easyjson"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Handler struct {
@@ -387,4 +388,42 @@ func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.Response(w, http.StatusNotFound, slug, false)
+}
+
+func (h *Handler) GetPostDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sId, flag := vars["id"]
+	if !flag {
+		utils.Response(w, http.StatusBadRequest, nil, false)
+		return
+	}
+	id, err := strconv.Atoi(sId)
+	if err != nil {
+		utils.Response(w, http.StatusBadRequest, nil, false)
+		return
+	}
+
+	sRelated := r.URL.Query().Get("related")
+	related := strings.Split(sRelated, ",")
+
+	foundPostDetailed, err := h.uc.GetPostDetails(r.Context(), id, related)
+
+	if err == nil && foundPostDetailed.Post.Author == "" {
+		utils.Response(w, http.StatusNotFound, id, false)
+		return
+	}
+	if err == nil && foundPostDetailed.Author.NickName == "" {
+		foundPostDetailed.Author = nil
+	}
+	if err == nil && foundPostDetailed.Forum.Slug == "" {
+		foundPostDetailed.Forum = nil
+	}
+	if err == nil && foundPostDetailed.Thread.Title == "" {
+		foundPostDetailed.Thread = nil
+	}
+	if err == nil {
+		utils.Response(w, http.StatusOK, foundPostDetailed, false)
+		return
+	}
+	utils.Response(w, http.StatusNotFound, id, false)
 }

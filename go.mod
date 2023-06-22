@@ -3,14 +3,15 @@ module github.com/BigBullas/TP_DB_project
 go 1.19
 
 require (
+	github.com/deckarep/golang-set v1.8.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jackc/pgtype v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/mailru/easyjson v0.7.7
 )
 
 require (
-	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.14.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect

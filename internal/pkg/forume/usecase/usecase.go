@@ -173,3 +173,7 @@ func (u *UseCase) GetUsers(ctx context.Context, slug string, params models.Reque
 	}
 	return u.repo.GetUsers(ctx, slug, params)
 }
+
+func (u *UseCase) GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error) {
+	return u.repo.GetPostDetails(ctx, id, related)
+}

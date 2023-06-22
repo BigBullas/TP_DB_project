@@ -67,6 +67,8 @@ CREATE UNLOGGED TABLE users_forum
     UNIQUE (Nickname, Slug)
 );
 
+--     Update vote in thread
+
 CREATE OR REPLACE FUNCTION addUserFirstVote() RETURNS TRIGGER AS
 $$
 BEGIN
@@ -93,3 +95,76 @@ CREATE TRIGGER on_update_vote
     AFTER UPDATE ON vote
     FOR EACH ROW
     EXECUTE PROCEDURE changeVoteOnThread();
+
+--     Update users_forum
+
+CREATE OR REPLACE FUNCTION PostUpdateUserForum() RETURNS TRIGGER AS
+$$
+DECLARE
+authorFullName TEXT;
+   authorAbout    TEXT;
+   authorEmail    CITEXT;
+BEGIN
+SELECT FullName, About, Email FROM users WHERE Nickname = NEW.Author INTO authorFullName, authorAbout, authorEmail;
+INSERT INTO users_forum (Nickname, FullName, About, Email, Slug)
+VALUES (NEW.Author, authorFullName, authorAbout, authorEmail, NEW.Forum)
+    ON CONFLICT DO NOTHING;
+return NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER post_update_user_forum
+    AFTER INSERT ON post
+    FOR EACH ROW
+    EXECUTE PROCEDURE PostUpdateUserForum();
+
+
+CREATE OR REPLACE FUNCTION ThreadUpdateUserForum() RETURNS TRIGGER AS
+$$
+DECLARE
+authorFullName CITEXT;
+   authorAbout    CITEXT;
+   authorEmail    CITEXT;
+BEGIN
+SELECT FullName, About, Email FROM users WHERE Nickname = NEW.Author INTO authorFullName, authorAbout, authorEmail;
+INSERT INTO users_forum (Nickname, FullName, About, Email, Slug)
+VALUES (NEW.Author, authorFullName, authorAbout, authorEmail, NEW.Forum)
+    ON CONFLICT DO NOTHING;
+return NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER thread_update_users_forum
+    AFTER INSERT ON thread
+    FOR EACH ROW
+    EXECUTE PROCEDURE ThreadUpdateUserForum();
+
+--     Update thread in forum
+
+CREATE OR REPLACE FUNCTION addThreadInForum() RETURNS TRIGGER AS
+$$
+BEGIN
+UPDATE forum SET Threads=(Threads + 1) WHERE Slug = NEW.Forum;
+return NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER new_thread_in_forum
+    AFTER INSERT ON thread
+    FOR EACH ROW
+    EXECUTE PROCEDURE addThreadInForum();
+
+--     Update posts in forum
+
+CREATE OR REPLACE FUNCTION addPostInForum() RETURNS TRIGGER AS
+$$
+BEGIN
+UPDATE forum SET Posts=(Posts + 1) WHERE Slug = NEW.Forum;
+return NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER new_post_in_forum
+    AFTER INSERT ON post
+    FOR EACH ROW
+    EXECUTE PROCEDURE addPostInForum();

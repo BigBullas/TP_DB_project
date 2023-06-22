@@ -369,3 +369,208 @@ func (r *repoPostgres) ChangeThreadInfo(ctx context.Context, thread models.Threa
 	}
 	return models.Thread{}, http.StatusInternalServerError
 }
+
+func (r *repoPostgres) GetUsers(ctx context.Context, slug string, params models.RequestParameters) ([]models.User, error) {
+	var GetUsers = `SELECT Nickname, FullName, About, Email FROM users_forum WHERE Slug = $1`
+	var rows pgx.Rows
+	var err error
+
+	if params.Since == "" {
+		if params.Desc {
+			GetUsers = GetUsers + ` ORDER BY Nickname DESC`
+		} else {
+			GetUsers = GetUsers + ` ORDER BY Nickname`
+		}
+		GetUsers = GetUsers + ` LIMIT $2;`
+	} else {
+		if params.Desc {
+			GetUsers = GetUsers + ` AND Nickname < $2 ORDER BY Nickname DESC`
+		} else {
+			GetUsers = GetUsers + ` AND Nickname > $2  ORDER BY Nickname`
+		}
+		GetUsers = GetUsers + ` LIMIT $3;`
+	}
+
+	if params.Since == "" {
+		rows, err = r.Conn.Query(ctx, GetUsers, slug, params.Limit)
+	} else {
+		rows, err = r.Conn.Query(ctx, GetUsers, slug, params.Since, params.Limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fUsers []models.User
+	for rows.Next() {
+		var u models.User
+		err := rows.Scan(&u.NickName, &u.FullName, &u.About, &u.Email)
+		if err != nil {
+			return nil, err
+		}
+		fUsers = append(fUsers, u)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return fUsers, nil
+}
+
+func (r *repoPostgres) GetPostDetails(ctx context.Context, id int, related []string) (models.PostDetailed, error) {
+	var (
+		flagUser   bool
+		flagForum  bool
+		flagThread bool
+	)
+	var errScan error
+	var fPost models.PostDetailed
+	var fAuthor models.User
+	var fForum models.Forum
+	var fThread models.Thread
+	fPost.Author = &fAuthor
+	fPost.Forum = &fForum
+	fPost.Thread = &fThread
+
+	for _, param := range related {
+		if param == "user" {
+			flagUser = true
+		}
+		if param == "forum" {
+			flagForum = true
+		}
+		if param == "thread" {
+			flagThread = true
+		}
+	}
+
+	var GetPostDetails = "SELECT post.Id, post.Author, post.Created, post.Forum, post.isEdited, " +
+		"post.Message, post.Parent, post.Thread"
+
+	if flagUser {
+		GetPostDetails += ", users.Nickname, users.FullName, users.About, users.Email"
+	}
+	if flagForum {
+		GetPostDetails += ", forum.Title, forum.\"user\", forum.Slug, forum.Posts, forum.Threads"
+	}
+	if flagThread {
+		GetPostDetails += ", thread.Id, thread.Title, thread.Author, thread.Forum, " +
+			"thread.Message, thread.Votes, thread.Slug, thread.Created"
+	}
+	GetPostDetails += " FROM post"
+
+	if flagUser {
+		GetPostDetails += " JOIN users ON post.Author = users.Nickname"
+	}
+	if flagForum {
+		GetPostDetails += " JOIN forum ON post.Forum = forum.Slug"
+	}
+	if flagThread {
+		GetPostDetails += " JOIN thread ON post.Thread = thread.Id"
+	}
+	GetPostDetails += ` WHERE post.Id = $1;`
+
+	if flagUser && flagForum && flagThread {
+		errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+			&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+			&fAuthor.NickName, &fAuthor.FullName, &fAuthor.About, &fAuthor.Email,
+			&fForum.Title, &fForum.User, &fForum.Slug, &fForum.Posts, &fForum.Threads,
+			&fThread.ID, &fThread.Title, &fThread.Author, &fThread.Forum,
+			&fThread.Message, &fThread.Votes, &fThread.Slug, &fThread.Created)
+	} else {
+		if flagUser && flagForum {
+			errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+				&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+				&fAuthor.NickName, &fAuthor.FullName, &fAuthor.About, &fAuthor.Email,
+				&fForum.Title, &fForum.User, &fForum.Slug, &fForum.Posts, &fForum.Threads)
+		} else {
+			if flagUser && flagThread {
+				errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+					&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+					&fAuthor.NickName, &fAuthor.FullName, &fAuthor.About, &fAuthor.Email,
+					&fThread.ID, &fThread.Title, &fThread.Author, &fThread.Forum,
+					&fThread.Message, &fThread.Votes, &fThread.Slug, &fThread.Created)
+			} else {
+				if flagForum && flagThread {
+					errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+						&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+						&fForum.Title, &fForum.User, &fForum.Slug, &fForum.Posts, &fForum.Threads,
+						&fThread.ID, &fThread.Title, &fThread.Author, &fThread.Forum,
+						&fThread.Message, &fThread.Votes, &fThread.Slug, &fThread.Created)
+				} else {
+					if flagUser {
+						errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+							&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+							&fAuthor.NickName, &fAuthor.FullName, &fAuthor.About, &fAuthor.Email)
+					} else {
+						if flagForum {
+							errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+								&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+								&fForum.Title, &fForum.User, &fForum.Slug, &fForum.Posts, &fForum.Threads)
+						} else {
+							if flagThread {
+								errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+									&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread,
+									&fThread.ID, &fThread.Title, &fThread.Author, &fThread.Forum,
+									&fThread.Message, &fThread.Votes, &fThread.Slug, &fThread.Created)
+							} else {
+								errScan = r.Conn.QueryRow(ctx, GetPostDetails, id).Scan(&fPost.Post.ID, &fPost.Post.Author, &fPost.Post.Created,
+									&fPost.Post.Forum, &fPost.Post.IsEdited, &fPost.Post.Message, &fPost.Post.Parent, &fPost.Post.Thread)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if errScan != nil {
+		if errScan == pgx.ErrNoRows {
+			return models.PostDetailed{}, nil
+		}
+		return models.PostDetailed{}, errScan
+	}
+	return fPost, nil
+}
+
+// TODO реализовать триггер, который будет менять path новым постам
+// реализовать триггер, который будет увеличивать число постов у форума
+// реализовать триггер, который будет увеличивать число веток у форума
+
+// CREATE OR REPLACE FUNCTION addThread() RETURNS TRIGGER AS
+//$update_forum$
+//BEGIN
+//UPDATE forum SET Threads=(Threads+1) WHERE Slug = NEW.Forum;
+//return NEW;
+//END
+//$update_forum$ LANGUAGE plpgsql;
+//
+//CREATE TRIGGER on_insert_thread
+//    AFTER INSERT
+//    ON threads
+//    FOR EACH ROW
+//    EXECUTE PROCEDURE addThread();
+//
+
+//
+//CREATE OR REPLACE FUNCTION addPost() RETURNS TRIGGER AS
+//$update_forum$
+//DECLARE
+//post_parent_path INTEGER[];
+//BEGIN
+//    IF (NEW.parent = 0) THEN
+//        NEW.path := array_append(NEW.path, NEW.id);
+//ELSE
+//SELECT path FROM posts WHERE id = NEW.parent INTO post_parent_path;
+//NEW.path := post_parent_path || NEW.id;
+//END IF;
+//UPDATE forum SET Posts=(Posts+1) WHERE Slug = NEW.Forum;
+//return NEW;
+//END
+//$update_forum$ LANGUAGE plpgsql;
+//
+//CREATE TRIGGER on_insert_post
+//    BEFORE INSERT
+//    ON posts
+//    FOR EACH ROW
+//    EXECUTE PROCEDURE addPost();
+
+//
