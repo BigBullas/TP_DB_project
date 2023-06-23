@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"net/http"
@@ -131,6 +132,7 @@ func (u *UseCase) GetThreadBySlugOrId(ctx context.Context, slugOrId string) (mod
 		thisThread, errId = u.repo.GetThreadById(ctx, slugOrIdNum)
 	}
 	if errSlug != nil || errId != nil {
+		fmt.Println("useCase get thread error ", errSlug, errId, thisThread)
 		return models.Thread{}, models.InternalError
 	}
 	if thisThread == (models.Thread{}) {
@@ -196,4 +198,17 @@ func (u *UseCase) GetStatus(ctx context.Context) (models.Info, int) {
 
 func (u *UseCase) Clear(ctx context.Context) int {
 	return u.repo.Clear(ctx)
+}
+
+func (u *UseCase) GetPosts(ctx context.Context, threadID int, params models.RequestParameters) ([]models.Post, error) {
+	switch params.Sort {
+	case "flat":
+		return u.repo.GetPostsFlat(ctx, params, threadID)
+	case "tree":
+		return u.repo.GetPostsTree(ctx, params, threadID)
+	case "parent_tree":
+		return u.repo.GetPostsParent(ctx, params, threadID)
+	default:
+		return []models.Post{}, models.InternalError
+	}
 }

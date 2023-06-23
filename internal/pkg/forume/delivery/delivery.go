@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	User "github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	"github.com/BigBullas/TP_DB_project/internal/utils"
@@ -474,4 +475,94 @@ func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) {
 	status := h.uc.Clear(r.Context())
 	utils.Response(w, status, nil, false)
+}
+
+func (h *Handler) GetPosts(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	vars := mux.Vars(r)
+	slugOrId, flag := vars["slug_or_id"]
+	if !flag {
+		utils.Response(w, http.StatusBadRequest, nil, false)
+		return
+	}
+	foundThread, errThread := h.uc.GetThreadBySlugOrId(r.Context(), slugOrId)
+	if errThread == models.InternalError {
+		fmt.Println("delivery get thread error ", errThread, foundThread)
+		utils.Response(w, http.StatusInternalServerError, nil, false)
+		return
+	}
+	if errThread == models.NotFound {
+		utils.Response(w, http.StatusNotFound, slugOrId, false)
+		return
+	}
+	fmt.Println("delivery start ", foundThread)
+
+	limitInput := r.URL.Query().Get("limit")
+	sinceInput := r.URL.Query().Get("since")
+	sortInput := r.URL.Query().Get("sort")
+	descInput := r.URL.Query().Get("desc")
+
+	params := models.RequestParameters{}
+
+	if sortInput == "" {
+		params.Sort = "flat"
+	} else {
+		if sortInput == "tree" || sortInput == "parent_tree" || sortInput == "flat" {
+			params.Sort = sortInput
+		} else {
+			utils.Response(w, http.StatusNotFound, slugOrId, false)
+			return
+		}
+	}
+
+	if limitInput == "" {
+		params.Limit = 100
+	} else {
+		limit, errLimit := strconv.Atoi(limitInput)
+		if errLimit != nil {
+			utils.Response(w, http.StatusNotFound, slugOrId, false)
+			return
+		}
+		params.Limit = limit
+	}
+
+	if sinceInput == "" {
+		params.SinceInt = 0
+	} else {
+		since, errSince := strconv.Atoi(sinceInput)
+		if errSince != nil {
+			utils.Response(w, http.StatusNotFound, slugOrId, false)
+			return
+		}
+		params.SinceInt = since
+	}
+
+	if descInput == "" {
+		params.Desc = false
+	} else {
+		desc, errDesc := strconv.ParseBool(descInput)
+		if errDesc != nil {
+			utils.Response(w, http.StatusNotFound, slugOrId, false)
+			return
+		}
+		params.Desc = desc
+	}
+
+	fmt.Println("delivery params ", limitInput, descInput, sortInput, sinceInput)
+	fmt.Println("delivery params ", params)
+
+	foundPosts, err := h.uc.GetPosts(r.Context(), foundThread.ID, params)
+	if err == models.NotFound {
+		utils.Response(w, http.StatusNotFound, slugOrId, false)
+		return
+	}
+	if err == nil && len(foundPosts) == 0 {
+		utils.Response(w, http.StatusOK, []models.Post{}, false)
+		return
+	}
+	if err == nil {
+		utils.Response(w, http.StatusOK, foundPosts, false)
+		return
+	}
+	utils.Response(w, http.StatusNotFound, slugOrId, false)
 }

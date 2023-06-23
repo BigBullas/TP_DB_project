@@ -42,6 +42,10 @@ func easyjson410d6225DecodeGithubComBigBullasTPDBProjectInternalModels(in *jlexe
 			out.Limit = int(in.Int())
 		case "since":
 			out.Since = string(in.String())
+		case "sort":
+			out.Sort = string(in.String())
+		case "sinceInt":
+			out.SinceInt = int(in.Int())
 		default:
 			in.SkipRecursive()
 		}
@@ -70,6 +74,16 @@ func easyjson410d6225EncodeGithubComBigBullasTPDBProjectInternalModels(out *jwri
 		const prefix string = ",\"since\":"
 		out.RawString(prefix)
 		out.String(string(in.Since))
+	}
+	{
+		const prefix string = ",\"sort\":"
+		out.RawString(prefix)
+		out.String(string(in.Sort))
+	}
+	{
+		const prefix string = ",\"sinceInt\":"
+		out.RawString(prefix)
+		out.Int(int(in.SinceInt))
 	}
 	out.RawByte('}')
 }

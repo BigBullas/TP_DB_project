@@ -26,6 +26,9 @@ type Repository interface {
 	ChangePostInfo(ctx context.Context, post models.Post) (models.Post, int)
 	GetStatus(ctx context.Context) (models.Info, int)
 	Clear(ctx context.Context) int
+	GetPostsFlat(ctx context.Context, params models.RequestParameters, threadID int) ([]models.Post, error)
+	GetPostsTree(ctx context.Context, params models.RequestParameters, threadID int) ([]models.Post, error)
+	GetPostsParent(ctx context.Context, params models.RequestParameters, threadID int) ([]models.Post, error)
 }
 
 type UseCase interface {
@@ -45,4 +48,5 @@ type UseCase interface {
 	ChangePostInfo(ctx context.Context, newPost models.Post, oldPost models.Post) (models.Post, int)
 	GetStatus(ctx context.Context) (models.Info, int)
 	Clear(ctx context.Context) int
+	GetPosts(ctx context.Context, idPost int, params models.RequestParameters) ([]models.Post, error)
 }

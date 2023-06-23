@@ -16,5 +16,5 @@ type Post struct {
 	Forum    string           `json:"forum,omitempty"`
 	Thread   int              `json:"thread,omitempty"`
 	Created  time.Time        `json:"created,omitempty"`
-	Path     pgtype.Int8Array `json:"path,omitempty"`
+	Path     pgtype.Int4Array `json:"path,omitempty"`
 }

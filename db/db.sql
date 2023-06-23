@@ -33,7 +33,7 @@ CREATE UNLOGGED TABLE post
 (
     Id        SERIAL      PRIMARY KEY,
     Author    CITEXT,
-    Created   TIMESTAMP   WITH TIME ZONE DEFAULT now(),
+    Created   TIMESTAMP   WITH TIME ZONE,
     Forum     CITEXT,
     IsEdited  BOOLEAN     DEFAULT FALSE,
     Message   CITEXT      NOT NULL,
@@ -161,11 +161,11 @@ $$
 DECLARE
 parent_path INTEGER[];
 BEGIN
-IF (NEW.parent = 0) THEN
-    NEW.path := array_append(NEW.path, NEW.id);
+    IF (NEW.parent = 0) THEN
+        NEW.path := array_append(NEW.Path, NEW.Id);
 ELSE
-    SELECT Path FROM posts WHERE Id = NEW.parent INTO parent_path;
-    NEW.path := parent_path || NEW.id;
+SELECT Path FROM post WHERE Id = NEW.Parent INTO parent_path;
+NEW.Path := parent_path || NEW.Id;
 END IF;
 
 UPDATE forum SET Posts=(Posts + 1) WHERE Slug = NEW.Forum;
@@ -174,6 +174,28 @@ END
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER new_post_in_forum
-    AFTER INSERT ON post
+    BEFORE INSERT ON post
     FOR EACH ROW
     EXECUTE PROCEDURE addPostInForum();
+
+
+CREATE INDEX IF NOT EXISTS forum__slug_index ON forum USING hash (Slug);
+
+CREATE INDEX IF NOT EXISTS users__nickname_index ON users USING hash (Nickname);
+CREATE INDEX IF NOT EXISTS users__email_index ON users USING hash (Email);
+
+CREATE INDEX IF NOT EXISTS users_forum__slug_nickname_index ON users_forum (Slug, Nickname);
+
+CREATE INDEX IF NOT EXISTS threads__id_index ON thread USING hash (Id);
+CREATE INDEX IF NOT EXISTS threads__slug_index ON thread USING hash (Slug);
+CREATE INDEX IF NOT EXISTS threads__forum_index ON thread USING hash (Forum);
+CREATE INDEX IF NOT EXISTS threads__forum_created_index ON thread (Forum, Created);
+
+CREATE INDEX IF NOT EXISTS votes__author_thread_index ON vote (Author, Thread);
+
+CREATE INDEX IF NOT EXISTS posts__id_index ON post USING hash (Id);
+CREATE INDEX IF NOT EXISTS posts__thread_index ON post USING hash (Thread);
+CREATE INDEX IF NOT EXISTS posts__thread_id_index ON post (Thread, Id);
+CREATE INDEX IF NOT EXISTS posts__thread_parent_path_id_index ON post (Thread, Parent, (path[1]), id);
+CREATE INDEX IF NOT EXISTS posts__path_index ON post USING hash ((path[1]));
+CREATE INDEX IF NOT EXISTS posts__path_thread_id_index ON post (path, thread, id);

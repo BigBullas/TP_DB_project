@@ -6,6 +6,7 @@ import (
 	"github.com/BigBullas/TP_DB_project/internal/models"
 	"github.com/BigBullas/TP_DB_project/internal/pkg/forume"
 	mapset "github.com/deckarep/golang-set"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"net/http"
@@ -250,7 +251,7 @@ func (r *repoPostgres) CreatePosts(ctx context.Context, posts []models.Post, thr
 		values = append(values, post.Author, post.Created, post.Forum, post.IsEdited, post.Message, post.Parent, post.Thread)
 	}
 	query = query[:len(query)-1]
-	query += ` RETURNING id;`
+	query += ` RETURNING id, path, created;`
 
 	queryCheckAuthors := "SELECT EXISTS (SELECT 1 FROM users WHERE Nickname IN ("
 	it := 0
@@ -318,10 +319,15 @@ func (r *repoPostgres) CreatePosts(ctx context.Context, posts []models.Post, thr
 	}
 	defer rows.Close()
 
+	var pathf pgtype.Int4Array
+	var ftime time.Time
 	for i, _ := range posts {
 		if rows.Next() {
-			err = rows.Scan(&posts[i].ID)
+			err = rows.Scan(&posts[i].ID, &pathf, &ftime)
+			posts[i].Created = ftime
+			fmt.Println(posts[i].ID, pathf, ftime)
 			if err != nil {
+				fmt.Println("err", err)
 				return nil, http.StatusInternalServerError
 			}
 		}
@@ -590,3 +596,320 @@ func (r *repoPostgres) Clear(ctx context.Context) int {
 	}
 	return http.StatusOK
 }
+
+func (r *repoPostgres) GetPosts(ctx context.Context, idPost int, params models.RequestParameters) ([]models.Post, error) {
+	return []models.Post{}, nil
+}
+
+func (r *repoPostgres) GetPostsFlat(ctx context.Context, params models.RequestParameters, threadID int) ([]models.Post, error) {
+	var rows pgx.Rows
+	var err error
+	GetPosts := `SELECT Id, Author, Created, Forum, isEdited, Message, Parent, Thread FROM post WHERE Thread = $1`
+
+	if params.SinceInt == 0 {
+		if params.Desc {
+			GetPosts = GetPosts + ` ORDER BY Id DESC`
+		} else {
+			GetPosts = GetPosts + ` ORDER BY Id`
+		}
+		GetPosts = GetPosts + ` LIMIT $2;`
+		rows, err = r.Conn.Query(ctx, GetPosts, threadID, params.Limit)
+	} else {
+		if params.Desc {
+			GetPosts = GetPosts + ` AND Id < $2 ORDER BY Id DESC`
+		} else {
+			GetPosts = GetPosts + ` AND Id > $2  ORDER BY Id`
+		}
+		GetPosts = GetPosts + ` LIMIT $3;`
+		rows, err = r.Conn.Query(ctx, GetPosts, threadID, params.SinceInt, params.Limit)
+
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	posts := make([]models.Post, 0)
+	for rows.Next() {
+		p := models.Post{}
+		err := rows.Scan(&p.ID, &p.Author, &p.Created, &p.Forum, &p.IsEdited, &p.Message, &p.Parent, &p.Thread)
+		if err != nil {
+			return posts, models.InternalError
+		}
+		fmt.Println(p.ID, " ", p.Parent, " ", p.Path.Elements)
+		posts = append(posts, p)
+	}
+
+	return posts, nil
+}
+
+func (r *repoPostgres) GetPostsTree(ctx context.Context, params models.RequestParameters, thread int) ([]models.Post, error) {
+	var rows pgx.Rows
+	var errQuery error
+	selectPosts := `SELECT post.Id, post.Author, post.Created, post.Forum, post.IsEdited, post.Message, post.Parent, post.Thread, post.Path
+                  FROM post`
+
+	if params.Limit == 100 {
+		if params.SinceInt != 0 && params.Desc {
+			selectPosts += ` JOIN post last ON last.id = $2 
+                       WHERE post.path < last.path AND post.thread = $1 
+                       ORDER BY post.path DESC, post.id DESC`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread, params.SinceInt)
+		}
+		if params.SinceInt == 0 && params.Desc {
+			selectPosts += ` WHERE post.Thread = $1 
+                        ORDER BY post.Path DESC, post.Id DESC`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread)
+		}
+		if params.SinceInt != 0 && !params.Desc {
+			selectPosts += ` JOIN post last ON last.id = $2 
+                       WHERE post.path > last.path AND post.thread = $1 
+                       ORDER BY post.path ASC, post.id ASC`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread, params.SinceInt)
+		}
+		if params.SinceInt == 0 && !params.Desc {
+			selectPosts += ` WHERE post.Thread = $1 
+                       ORDER BY post.Path ASC, post.Id ASC`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread)
+		}
+	} else {
+		if params.SinceInt != 0 && params.Desc {
+			selectPosts += ` JOIN post last ON last.id = $2 
+                       WHERE post.path < last.path AND post.thread = $1 
+                       ORDER BY post.path DESC, post.id DESC LIMIT $3`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread, params.SinceInt, params.Limit)
+		}
+		if params.SinceInt == 0 && params.Desc {
+			selectPosts += ` WHERE post.Thread = $1 
+                       ORDER BY post.Path DESC, post.Id DESC LIMIT $2`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread, params.Limit)
+		}
+		if params.SinceInt != 0 && !params.Desc {
+			selectPosts += ` JOIN post last ON last.id = $2 
+                       WHERE post.path > last.path AND post.thread = $1 
+                       ORDER BY post.path ASC, post.id ASC LIMIT $3`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread, params.SinceInt, params.Limit)
+		}
+		if params.SinceInt == 0 && !params.Desc {
+			selectPosts += ` WHERE post.Thread = $1 
+                       ORDER BY post.Path ASC, post.Id ASC LIMIT $2`
+			rows, errQuery = r.Conn.Query(ctx, selectPosts, thread, params.Limit)
+		}
+	}
+	if errQuery != nil {
+		return []models.Post{}, models.InternalError
+	}
+	defer rows.Close()
+
+	posts := make([]models.Post, 0)
+	for rows.Next() {
+		postOne := models.Post{}
+		err := rows.Scan(&postOne.ID, &postOne.Author, &postOne.Created, &postOne.Forum, &postOne.IsEdited, &postOne.Message, &postOne.Parent, &postOne.Thread, &postOne.Path)
+
+		if err != nil {
+			return []models.Post{}, models.InternalError
+		}
+		fmt.Println(postOne.ID, " ", postOne.Parent, " ", postOne.Path.Elements)
+		posts = append(posts, postOne)
+	}
+	return posts, nil
+}
+
+//func (r *repoPostgres) GetPostsTree(ctx context.Context, params models.RequestParameters, threadID int) ([]models.Post, error) {
+//	//var rows pgx.Rows
+//	//var err error
+//	//GetPosts := `SELECT Id, Author, Created, Forum, IsEdited, Message, Parent, Thread FROM post WHERE Thread = $1`
+//	//
+//	//if params.SinceInt == 0 {
+//	//	if params.Desc {
+//	//		if params.Limit != 100 {
+//	//			GetPosts = GetPosts + ` ORDER BY Path DESC, Id DESC`
+//	//			GetPosts = GetPosts + ` LIMIT $2;`
+//	//		} else {
+//	//			GetPosts = GetPosts + ` ORDER BY Path, Id DESC`
+//	//		}
+//	//	} else {
+//	//		GetPosts = GetPosts + ` ORDER BY Path, Id`
+//	//		GetPosts = GetPosts + ` LIMIT $2;`
+//	//	}
+//	//	fmt.Println("repo start ", GetPosts)
+//	//	rows, err = r.Conn.Query(ctx, GetPosts, threadID, params.Limit)
+//	//	if err != nil {
+//	//		return []models.Post{}, err
+//	//	}
+//	//} else {
+//	//	if params.Desc {
+//	//		GetPosts = `SELECT post.Id, post.Author, post.Created, post.Forum,
+//	//  			post.IsEdited, post.Message, post.Parent, post.Thread
+//	//			FROM post JOIN post parent ON parent.Id = $2 WHERE post.Path < parent.Path AND  post.Thread = $1
+//	//			ORDER BY post.Path DESC, post.Id DESC`
+//	//	} else {
+//	//		GetPosts = `SELECT post.Id, post.Author, post.Created,
+//	//			post.Forum, post.IsEdited, post.Message, post.Parent, post.Thread
+//	//			FROM post JOIN post parent ON parent.Id = $2 WHERE post.Path > parent.Path AND  post.Thread = $1
+//	//			ORDER BY post.Path, post.Id`
+//	//	}
+//	//	GetPosts = GetPosts + ` LIMIT $3;`
+//	//	rows, err = r.Conn.Query(ctx, GetPosts, threadID, params.SinceInt, params.Limit)
+//	//	if err != nil {
+//	//		return []models.Post{}, err
+//	//	}
+//	//}
+//
+//	var rows pgx.Rows
+//
+//	query := `SELECT id, author, created, forum, isedited, message, parent, thread
+//			  FROM post
+//			  WHERE thread = $1 `
+//
+//	if params.Limit == 100 && params.SinceInt == 0 {
+//		if params.Desc {
+//			query += `ORDER BY path, id DESC`
+//		} else {
+//			query += `ORDER BY path, id ASC`
+//		}
+//		rows, _ = r.Conn.Query(ctx, query, threadID)
+//	} else {
+//		if params.Limit != 100 && params.SinceInt == 0 {
+//			if params.Desc {
+//				query += ` ORDER BY path DESC, id DESC LIMIT $2`
+//			} else {
+//				query += ` ORDER BY path, id ASC LIMIT $2`
+//			}
+//			rows, _ = r.Conn.Query(ctx, query, threadID, params.Limit)
+//		}
+//
+//		if params.Limit != 100 && params.SinceInt != 0 {
+//			if params.Desc {
+//				query = `SELECT post.id, post.author, post.created,
+//				post.forum, post.isedited, post.message, post.parent, post.thread
+//				FROM post JOIN post parent ON parent.id = $2 WHERE post.path < parent.path AND  post.thread = $1
+//				ORDER BY post.path DESC, post.id DESC LIMIT $3`
+//			} else {
+//				query = `SELECT post.id, post.author, post.created,
+//				post.forum, post.isedited, post.message, post.parent, post.thread
+//				FROM post JOIN post parent ON parent.id = $2 WHERE post.path > parent.path AND  post.thread = $1
+//				ORDER BY post.path ASC, post.id ASC LIMIT $3`
+//			}
+//			rows, _ = r.Conn.Query(ctx, query, threadID, params.Since, params.Limit)
+//		}
+//
+//		if params.Limit == 100 && params.SinceInt != 0 {
+//			if params.Desc {
+//				query = `SELECT post.id, post.author, post.created,
+//				post.forum, post.isedited, post.message, post.parent, post.thread
+//				FROM post JOIN post parent ON parent.id = $2 WHERE post.path < parent.path AND  post.thread = $1
+//				ORDER BY post.path DESC, post.id DESC`
+//			} else {
+//				query = `SELECT post.id, post.author, post.created,
+//				post.forum, post.isedited, post.message, post.parent, post.thread
+//				FROM post JOIN post parent ON parent.id = $2 WHERE post.path > parent.path AND  post.thread = $1
+//				ORDER BY post.path ASC, post.id ASC`
+//			}
+//			rows, _ = r.Conn.Query(ctx, query, threadID, params.Since)
+//		}
+//	}
+//
+//	posts := make([]models.Post, 0)
+//	defer rows.Close()
+//	for rows.Next() {
+//		p := models.Post{}
+//		err := rows.Scan(&p.ID, &p.Author, &p.Created, &p.Forum, &p.IsEdited, &p.Message, &p.Parent, &p.Thread)
+//		if err != nil {
+//			fmt.Println(err)
+//			return posts, models.InternalError
+//		}
+//		posts = append(posts, p)
+//	}
+//
+//	return posts, nil
+//}
+
+func (r *repoPostgres) GetPostsParent(ctx context.Context, params models.RequestParameters, thread int) ([]models.Post, error) {
+	selectPostParents := fmt.Sprintf(`SELECT Id FROM post WHERE Thread = %d AND Parent = 0`, thread)
+
+	if params.SinceInt == 0 {
+		if params.Desc {
+			selectPostParents += ` ORDER BY Id DESC `
+		} else {
+			selectPostParents += ` ORDER BY Id ASC `
+		}
+	} else {
+		if params.Desc {
+			selectPostParents += fmt.Sprintf(` AND Path[1] < (SELECT Path[1] FROM post WHERE Id = %d) ORDER BY Id DESC `, params.SinceInt)
+		} else {
+			selectPostParents += fmt.Sprintf(` AND Path[1] > (SELECT Path[1] FROM post WHERE Id = %d) ORDER BY Id ASC `, params.SinceInt)
+		}
+	}
+
+	if params.Limit != 100 {
+		selectPostParents += fmt.Sprintf(" LIMIT %d", params.Limit)
+	}
+
+	selectPosts := fmt.Sprintf(`SELECT Id, Author, Created, Forum, IsEdited, Message, Parent, Thread FROM post WHERE Path[1] = ANY (%s) `, selectPostParents)
+
+	if params.Desc {
+		selectPosts += ` ORDER BY Path[1] DESC, Path, Id `
+	} else {
+		selectPosts += ` ORDER BY Path[1] ASC, Path, Id `
+	}
+
+	rows, _ := r.Conn.Query(ctx, selectPosts)
+	defer rows.Close()
+	posts := make([]models.Post, 0)
+	for rows.Next() {
+		onePost := models.Post{}
+		err := rows.Scan(&onePost.ID, &onePost.Author, &onePost.Created, &onePost.Forum, &onePost.IsEdited, &onePost.Message, &onePost.Parent, &onePost.Thread)
+		if err != nil {
+			return posts, models.InternalError
+		}
+		posts = append(posts, onePost)
+	}
+
+	return posts, nil
+}
+
+//func (r *repoPostgres) GetPostsParent(ctx context.Context, params models.RequestParameters, threadID int) ([]models.Post, error) {
+//	var rows pgx.Rows
+//
+//	parents := fmt.Sprintf(`SELECT id FROM post WHERE thread = %d AND parent = 0 `, threadID)
+//
+//	if params.SinceInt != 0 {
+//		if params.Desc {
+//			parents += ` AND path[1] < ` + fmt.Sprintf(`(SELECT path[1] FROM post WHERE id = %s) `, params.Since)
+//		} else {
+//			parents += ` AND path[1] > ` + fmt.Sprintf(`(SELECT path[1] FROM post WHERE id = %s) `, params.Since)
+//		}
+//	}
+//
+//	if params.Desc {
+//		parents += ` ORDER BY id DESC `
+//	} else {
+//		parents += ` ORDER BY id `
+//	}
+//
+//	parents += fmt.Sprintf(` LIMIT %d`, params.Limit)
+//
+//	query := fmt.Sprintf(
+//		`SELECT Id, Author, Created, Forum, IsEdited, Message, Parent, Thread FROM post WHERE Path[1] = ANY (%s) `, parents)
+//
+//	if params.Desc {
+//		query += ` ORDER BY path[1] DESC, path,  id `
+//	} else {
+//		query += ` ORDER BY path[1], path,  id `
+//	}
+//
+//	rows, _ = r.Conn.Query(ctx, query)
+//	posts := make([]models.Post, 0)
+//	defer rows.Close()
+//	for rows.Next() {
+//		p := models.Post{}
+//		err := rows.Scan(&p.ID, &p.Author, &p.Created, &p.Forum, &p.IsEdited, &p.Message, &p.Parent, &p.Thread)
+//		if err != nil {
+//			return posts, models.InternalError
+//		}
+//		posts = append(posts, p)
+//	}
+//	return posts, nil
+//}
